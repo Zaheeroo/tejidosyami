@@ -5,6 +5,8 @@ You are an expert in TypeScript, Next.js App Router, React, and Tailwind. Follow
   - src/app/api has the API routes
   - src/app/components has all the React components
   - src/app/lib has all the other code like helpers, hooks, and contexts
+  - Dont use npx shadcn-ui. Instead use npx shadcn to install any component
+
 
 There are some pre-configured APIs in this template that can be used but only if required by the current project. These have already been created:
 - Firebase
