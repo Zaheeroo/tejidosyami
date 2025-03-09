@@ -8,7 +8,7 @@ import { isAdmin } from '@/lib/utils'
 import Navbar from '@/components/Navbar'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
-import { ChevronLeft, ShoppingBag, Package, Clock, CheckCircle, XCircle } from 'lucide-react'
+import { ChevronLeft, ShoppingBag, Package, Clock, CheckCircle, XCircle, RefreshCcw, Shield } from 'lucide-react'
 import { getOrders, Order, updateOrderStatus } from '@/lib/services/order-service'
 import { Button } from '@/components/ui/button'
 import {
@@ -19,6 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { supabase } from '@/lib/supabase/supabase-client'
 
 // Create a Badge component since we don't have access to the shadcn Badge component
 const Badge = ({ 
@@ -40,6 +41,8 @@ export default function OrdersPage() {
   const router = useRouter()
   const [orders, setOrders] = useState<Order[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [debugInfo, setDebugInfo] = useState<any>(null)
 
   useEffect(() => {
     // If user is not loading and either not logged in or not an admin, redirect to home
@@ -49,22 +52,61 @@ export default function OrdersPage() {
     }
   }, [user, loading, router])
 
-  useEffect(() => {
-    async function loadOrders() {
-      if (user && isAdmin(user)) {
+  const loadOrders = async () => {
+    if (user && isAdmin(user)) {
+      try {
+        setIsLoading(true)
+        setError(null)
+        
+        console.log('Fetching orders...')
+        
+        // Try to get orders using the order service
         try {
-          setIsLoading(true)
           const ordersData = await getOrders()
+          console.log('Orders from service:', ordersData)
           setOrders(ordersData)
-        } catch (error) {
-          console.error('Error loading orders:', error)
-          toast.error('Failed to load orders')
-        } finally {
-          setIsLoading(false)
+        } catch (serviceError: any) {
+          console.error('Error from order service:', serviceError)
+          setError(`Service error: ${serviceError.message}`)
+          
+          // If the error is about the service role key, show a helpful message
+          if (serviceError.message && serviceError.message.includes('supabaseKey')) {
+            setError('Service role key is not available. Please visit the Fix RLS page to update the RLS policies.')
+          }
         }
+        
+        // Also try to query the orders table directly
+        try {
+          const { data: directOrders, error: directError } = await supabase
+            .from('orders')
+            .select('*')
+          
+          console.log('Direct orders query:', directOrders)
+          console.log('Direct query error:', directError)
+          
+          setDebugInfo({
+            directOrders,
+            directError: directError ? directError.message : null
+          })
+          
+          // If service failed but direct query worked, use the direct query results
+          if (error && directOrders && directOrders.length > 0) {
+            setOrders(directOrders as Order[])
+          }
+        } catch (directQueryError: any) {
+          console.error('Error querying orders directly:', directQueryError)
+        }
+      } catch (error: any) {
+        console.error('Error loading orders:', error)
+        toast.error('Failed to load orders')
+        setError(`Error: ${error.message}`)
+      } finally {
+        setIsLoading(false)
       }
     }
+  }
 
+  useEffect(() => {
     if (user && !loading) {
       loadOrders()
     }
@@ -116,6 +158,23 @@ export default function OrdersPage() {
     }
   }
 
+  const createTestOrder = async () => {
+    try {
+      const response = await fetch('/api/create-test-order')
+      const data = await response.json()
+      
+      if (data.success) {
+        toast.success('Test order created successfully')
+        loadOrders() // Reload orders
+      } else {
+        toast.error(`Failed to create test order: ${data.error}`)
+      }
+    } catch (error: any) {
+      console.error('Error creating test order:', error)
+      toast.error(`Error: ${error.message}`)
+    }
+  }
+
   return (
     <>
       <Navbar />
@@ -125,8 +184,40 @@ export default function OrdersPage() {
             <ChevronLeft className="h-4 w-4 mr-1" />
             Back to Dashboard
           </Link>
-          <h1 className="text-3xl font-bold">Order Management</h1>
-          <p className="text-gray-500 mt-2">View and manage customer orders</p>
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold">Order Management</h1>
+              <p className="text-gray-500 mt-2">View and manage customer orders</p>
+            </div>
+            <div className="flex space-x-2">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={loadOrders}
+                className="flex items-center"
+              >
+                <RefreshCcw className="h-4 w-4 mr-1" />
+                Refresh
+              </Button>
+              <Button 
+                variant="default" 
+                size="sm"
+                onClick={createTestOrder}
+                className="flex items-center"
+              >
+                Create Test Order
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => router.push('/admin/fix-rls')}
+                className="flex items-center"
+              >
+                <Shield className="h-4 w-4 mr-1" />
+                Fix RLS
+              </Button>
+            </div>
+          </div>
         </div>
         
         <Card className="mb-8">
@@ -134,6 +225,26 @@ export default function OrdersPage() {
             <CardTitle>Orders</CardTitle>
           </CardHeader>
           <CardContent>
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+                <p className="font-medium">Error loading orders</p>
+                <p className="text-sm">{error}</p>
+                {error.includes('service role key') && (
+                  <div className="mt-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => router.push('/admin/fix-rls')}
+                      className="flex items-center text-red-700 border-red-300"
+                    >
+                      <Shield className="h-4 w-4 mr-1" />
+                      Go to Fix RLS Page
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+            
             {isLoading ? (
               <div className="flex justify-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
@@ -145,6 +256,14 @@ export default function OrdersPage() {
                 <p className="text-gray-500 text-center max-w-md">
                   There are no customer orders in the system yet.
                 </p>
+                {debugInfo && (
+                  <div className="mt-8 w-full max-w-2xl">
+                    <h4 className="text-sm font-medium mb-2">Debug Information:</h4>
+                    <pre className="bg-gray-100 p-4 rounded text-xs overflow-auto max-h-60">
+                      {JSON.stringify(debugInfo, null, 2)}
+                    </pre>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="overflow-x-auto">

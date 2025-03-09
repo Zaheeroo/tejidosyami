@@ -1,6 +1,7 @@
 import { supabase } from '../supabase/supabase-client';
 import { CartItem } from './cart-service';
 import { v4 as uuidv4 } from 'uuid';
+import { createClient } from '@supabase/supabase-js';
 
 export interface Order {
   id: string;
@@ -28,25 +29,62 @@ export interface OrderItem {
   };
 }
 
+// Create a Supabase admin client with service role key
+const createAdminClient = () => {
+  // Check if we're on the server side
+  if (typeof window === 'undefined') {
+    // Server-side: we can access the service role key
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!serviceRoleKey) {
+      console.error('SUPABASE_SERVICE_ROLE_KEY is not defined');
+      // Fall back to regular client if service role key is not available
+      return supabase;
+    }
+    
+    return createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      serviceRoleKey,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    );
+  } else {
+    // Client-side: we can't access the service role key, so use regular client
+    console.warn('Attempted to use admin client on client-side, falling back to regular client');
+    return supabase;
+  }
+};
+
 // Get all orders (admin only)
 export async function getOrders() {
-  const { data, error } = await supabase
-    .from('orders')
-    .select(`
-      *,
-      items:order_items(
-        *,
-        product:products(name, image_url)
-      )
-    `)
-    .order('created_at', { ascending: false });
+  try {
+    // Use admin client to bypass RLS
+    const supabaseAdmin = createAdminClient();
     
-  if (error) {
-    console.error('Error fetching orders:', error);
+    const { data, error } = await supabaseAdmin
+      .from('orders')
+      .select(`
+        *,
+        items:order_items(
+          *,
+          product:products(name, image_url)
+        )
+      `)
+      .order('created_at', { ascending: false });
+      
+    if (error) {
+      console.error('Error fetching orders:', error);
+      throw error;
+    }
+    
+    return data as Order[];
+  } catch (error) {
+    console.error('Error in getOrders:', error);
     throw error;
   }
-  
-  return data as Order[];
 }
 
 // Get orders for a specific user
@@ -139,29 +177,37 @@ export async function createOrder(userId: string, cartItems: CartItem[], totalAm
 
 // Update order status
 export async function updateOrderStatus(orderId: string, status: string, paymentStatus?: string, transactionId?: string) {
-  const updates: any = { status };
-  
-  if (paymentStatus) {
-    updates.payment_status = paymentStatus;
-  }
-  
-  if (transactionId) {
-    updates.transaction_id = transactionId;
-  }
-  
-  updates.updated_at = new Date().toISOString();
-  
-  const { error } = await supabase
-    .from('orders')
-    .update(updates)
-    .eq('id', orderId);
+  try {
+    // Use admin client to bypass RLS for admin operations
+    const supabaseAdmin = createAdminClient();
     
-  if (error) {
-    console.error(`Error updating order ${orderId}:`, error);
+    const updates: any = { status };
+    
+    if (paymentStatus) {
+      updates.payment_status = paymentStatus;
+    }
+    
+    if (transactionId) {
+      updates.transaction_id = transactionId;
+    }
+    
+    updates.updated_at = new Date().toISOString();
+    
+    const { error } = await supabaseAdmin
+      .from('orders')
+      .update(updates)
+      .eq('id', orderId);
+      
+    if (error) {
+      console.error(`Error updating order ${orderId}:`, error);
+      throw error;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error in updateOrderStatus:', error);
     throw error;
   }
-  
-  return true;
 }
 
 // Create a payment record for an order

@@ -72,8 +72,19 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     
     if (lowStockError) throw lowStockError;
 
-    // For now, we don't have an orders table, so we'll return 0
-    const orderCount = 0;
+    // Get order count
+    let orderCount = 0;
+    try {
+      const { count, error: orderError } = await supabase
+        .from('orders')
+        .select('*', { count: 'exact', head: true });
+      
+      if (!orderError) {
+        orderCount = count || 0;
+      }
+    } catch (error) {
+      console.error('Error fetching order count:', error);
+    }
 
     return {
       productCount: productCount || 0,
