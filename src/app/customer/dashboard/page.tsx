@@ -11,12 +11,14 @@ import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { ShoppingBag, Package, User, Heart } from 'lucide-react'
 import { getProducts, Product } from '@/lib/services/product-service'
+import { getUserOrders } from '@/lib/services/order-service'
 import ProductCard from '@/components/ProductCard'
 
 export default function CustomerDashboard() {
   const { user, loading } = useAuth()
   const router = useRouter()
   const [recentProducts, setRecentProducts] = useState<Product[]>([])
+  const [orderCount, setOrderCount] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
@@ -28,21 +30,31 @@ export default function CustomerDashboard() {
   }, [user, loading, router])
 
   useEffect(() => {
-    const fetchRecentProducts = async () => {
+    const fetchData = async () => {
+      if (!user) return;
+      
       try {
         setIsLoading(true)
-        const data = await getProducts()
+        
+        // Fetch products
+        const productsData = await getProducts()
         // Get the 4 most recent products
-        setRecentProducts(data.slice(0, 4))
+        setRecentProducts(productsData.slice(0, 4))
+        
+        // Fetch user orders
+        const ordersData = await getUserOrders(user.id)
+        setOrderCount(ordersData.length)
       } catch (error) {
-        console.error('Error fetching products:', error)
+        console.error('Error fetching data:', error)
       } finally {
         setIsLoading(false)
       }
     }
 
-    fetchRecentProducts()
-  }, [])
+    if (user && !loading) {
+      fetchData()
+    }
+  }, [user, loading])
 
   // Don't render anything while checking authentication
   if (loading || !user || !isCustomer(user)) {
@@ -62,7 +74,7 @@ export default function CustomerDashboard() {
               <ShoppingBag className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
+              <div className="text-2xl font-bold">{orderCount}</div>
               <p className="text-xs text-muted-foreground">
                 View your order history
               </p>
