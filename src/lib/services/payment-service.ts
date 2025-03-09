@@ -10,6 +10,8 @@ export interface OnvopayPaymentRequest {
   customerName?: string;
   redirectUrl: string;
   callbackUrl: string;
+  testMode?: boolean;
+  testCardNumber?: string;
 }
 
 export interface OnvopayPaymentResponse {
@@ -39,6 +41,17 @@ const ONVOPAY_SECRET_KEY = process.env.ONVOPAY_SECRET_KEY || '';
 // Flag to use mock implementation for testing
 const USE_MOCK = true;
 
+// Test card scenarios
+const TEST_CARD_SCENARIOS = {
+  '4242424242424242': { status: 'completed', message: 'Payment successful' },
+  '4111111111111111': { status: 'failed', message: 'Insufficient funds' },
+  '5555555555554444': { status: 'failed', message: 'Try again later' },
+  '5454545454545454': { status: 'failed', message: 'Stolen card' },
+  '378282246310005': { status: 'failed', message: 'Authentication failed' },
+  '6011111111111117': { status: 'failed', message: 'Expired card' },
+  '3566111111111113': { status: 'failed', message: 'Invalid card number' },
+};
+
 // Create a payment request with Onvopay
 export async function createPayment(paymentData: OnvopayPaymentRequest): Promise<OnvopayPaymentResponse> {
   try {
@@ -53,6 +66,23 @@ export async function createPayment(paymentData: OnvopayPaymentRequest): Promise
       
       // Generate a mock payment ID
       const mockPaymentId = 'mock_' + Math.random().toString(36).substring(2, 15);
+      
+      // Handle test card scenarios if in test mode
+      if (paymentData.testMode && paymentData.testCardNumber) {
+        const cleanCardNumber = paymentData.testCardNumber.replace(/\s/g, '');
+        const scenario = TEST_CARD_SCENARIOS[cleanCardNumber as keyof typeof TEST_CARD_SCENARIOS];
+        
+        // Create a mock payment URL that includes test card info
+        const mockPaymentUrl = `${paymentData.redirectUrl}&mockPayment=true&paymentId=${mockPaymentId}&testCard=${cleanCardNumber}`;
+        
+        console.log(`Test payment with card ${cleanCardNumber}, scenario:`, scenario);
+        
+        return {
+          success: true,
+          paymentUrl: mockPaymentUrl,
+          paymentId: mockPaymentId
+        };
+      }
       
       // Create a mock payment URL that redirects to the success page
       const mockPaymentUrl = `${paymentData.redirectUrl}&mockPayment=true&paymentId=${mockPaymentId}`;
@@ -126,7 +156,7 @@ export function verifyWebhookSignature(payload: any, signature: string): boolean
 }
 
 // Get payment status from Onvopay
-export async function getPaymentStatus(paymentId: string): Promise<any> {
+export async function getPaymentStatus(paymentId: string, testCardNumber?: string): Promise<any> {
   try {
     console.log('Getting payment status for:', paymentId);
     
@@ -137,7 +167,24 @@ export async function getPaymentStatus(paymentId: string): Promise<any> {
       // Simulate API delay
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      // Return mock payment status
+      // If test card number is provided, return the corresponding scenario
+      if (testCardNumber) {
+        const cleanCardNumber = testCardNumber.replace(/\s/g, '');
+        const scenario = TEST_CARD_SCENARIOS[cleanCardNumber as keyof typeof TEST_CARD_SCENARIOS];
+        
+        if (scenario) {
+          return {
+            paymentId,
+            status: scenario.status,
+            message: scenario.message,
+            amount: 100,
+            currency: 'USD',
+            transactionId: 'mock_tx_' + Math.random().toString(36).substring(2, 10)
+          };
+        }
+      }
+      
+      // Return mock payment status (default success)
       return {
         paymentId,
         status: 'completed',

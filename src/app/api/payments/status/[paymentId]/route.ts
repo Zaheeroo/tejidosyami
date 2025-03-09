@@ -15,12 +15,16 @@ export async function GET(
       );
     }
     
+    // Check if this is a test payment with a test card
+    const testCard = request.nextUrl.searchParams.get('testCard');
+    
     // Get payment status from Onvopay
-    const paymentStatus = await getPaymentStatus(paymentId);
+    const paymentStatus = await getPaymentStatus(paymentId, testCard || undefined);
     
     return NextResponse.json({
       success: true,
       status: paymentStatus.status,
+      message: paymentStatus.message,
       paymentId: paymentStatus.paymentId,
       orderId: paymentStatus.orderId,
       amount: paymentStatus.amount,
