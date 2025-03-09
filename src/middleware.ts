@@ -1,6 +1,12 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+// Define protected routes that require authentication
+const protectedRoutes = ['/auth/update-password']
+
+// Define auth routes that should redirect to home if already authenticated
+const authRoutes = ['/login', '/register', '/forgot-password']
+
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
     request: {
@@ -35,7 +41,22 @@ export async function middleware(request: NextRequest) {
   )
 
   // Refresh session if expired - required for Server Components
-  await supabase.auth.getSession()
+  const { data: { session } } = await supabase.auth.getSession()
+  
+  // Handle protected routes
+  const path = request.nextUrl.pathname
+  
+  // Check if the route is protected and user is not authenticated
+  if (protectedRoutes.some(route => path.startsWith(route)) && !session) {
+    const redirectUrl = new URL('/login', request.url)
+    redirectUrl.searchParams.set('redirect', path)
+    return NextResponse.redirect(redirectUrl)
+  }
+  
+  // Check if the route is an auth route and user is already authenticated
+  if (authRoutes.some(route => path === route) && session) {
+    return NextResponse.redirect(new URL('/', request.url))
+  }
 
   return response
 }
