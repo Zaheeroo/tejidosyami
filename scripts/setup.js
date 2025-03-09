@@ -38,11 +38,30 @@ sqlFunctionsScript.on('close', (code) => {
       process.exit(code);
     }
     
-    console.log('\nSetup completed!');
-    console.log('\nYou can now run the application with:');
-    console.log('npm run dev');
-    console.log('\nAnd log in with:');
-    console.log('Admin: admin@example.com / password123');
-    console.log('Customer: customer@example.com / password123');
+    // Finally, create the products table
+    console.log('\n3. Setting up products table...');
+    const productsScript = spawn('node', [path.join(__dirname, 'create-products-table.js')]);
+    
+    productsScript.stdout.on('data', (data) => {
+      console.log(data.toString());
+    });
+    
+    productsScript.stderr.on('data', (data) => {
+      console.error(data.toString());
+    });
+    
+    productsScript.on('close', (code) => {
+      if (code !== 0) {
+        console.error(`Products table script exited with code ${code}`);
+        process.exit(code);
+      }
+      
+      console.log('\nSetup completed!');
+      console.log('\nYou can now run the application with:');
+      console.log('npm run dev');
+      console.log('\nAnd log in with:');
+      console.log('Admin: admin@example.com / password123');
+      console.log('Customer: customer@example.com / password123');
+    });
   });
 }); 

@@ -1,10 +1,12 @@
 'use client'
 
+import React from 'react'
 import Link from 'next/link'
 import { useAuth } from '@/lib/contexts/SupabaseAuthContext'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { isAdmin } from '@/lib/utils'
+import ShoppingCart from './ShoppingCart'
 
 export default function Navbar() {
   const { user, signOut } = useAuth()
@@ -29,16 +31,26 @@ export default function Navbar() {
       <div className="flex flex-wrap justify-between items-center mx-auto max-w-screen-xl">
         <Link href="/" className="flex items-center">
           <span className="self-center text-xl font-semibold whitespace-nowrap">
-            My App
+            My Shop
           </span>
         </Link>
         
+        <div className="flex items-center space-x-4">
+          <Link href="/products" className="text-gray-600 hover:text-gray-900">
+            Products
+          </Link>
+          {user && (
+            <Link href={dashboardLink} className="text-gray-600 hover:text-gray-900">
+              Dashboard
+            </Link>
+          )}
+        </div>
+        
         <div className="flex items-center space-x-4 lg:order-2">
+          <ShoppingCart />
+          
           {user ? (
             <>
-              <Link href={dashboardLink}>
-                <Button variant="ghost">Dashboard</Button>
-              </Link>
               <div className="flex items-center space-x-4">
                 <span className="text-sm text-gray-600 hidden md:inline">
                   {user.email}
