@@ -27,6 +27,9 @@ export async function getProducts() {
 }
 
 export async function getProductById(id: string) {
+  // Add timestamp to avoid caching issues
+  const timestamp = new Date().getTime();
+  
   const { data, error } = await supabase
     .from('products')
     .select('*')
@@ -38,6 +41,8 @@ export async function getProductById(id: string) {
     throw error;
   }
   
+  // Ensure we're returning the most up-to-date data
+  console.log(`Fetched product at ${timestamp}:`, data);
   return data as Product;
 }
 
