@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useAuth } from '@/lib/contexts/SupabaseAuthContext'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
+import { isAdmin } from '@/lib/utils'
 
 export default function Navbar() {
   const { user, signOut } = useAuth()
@@ -18,6 +19,11 @@ export default function Navbar() {
     }
   }
 
+  // Determine dashboard link based on user role
+  const dashboardLink = isAdmin(user) 
+    ? '/admin/dashboard' 
+    : '/customer/dashboard'
+
   return (
     <nav className="bg-white border-b border-gray-200 px-4 py-2.5">
       <div className="flex flex-wrap justify-between items-center mx-auto max-w-screen-xl">
@@ -27,19 +33,24 @@ export default function Navbar() {
           </span>
         </Link>
         
-        <div className="flex items-center lg:order-2">
+        <div className="flex items-center space-x-4 lg:order-2">
           {user ? (
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600">
-                {user.email}
-              </span>
-              <Button
-                variant="outline"
-                onClick={handleSignOut}
-              >
-                Logout
-              </Button>
-            </div>
+            <>
+              <Link href={dashboardLink}>
+                <Button variant="ghost">Dashboard</Button>
+              </Link>
+              <div className="flex items-center space-x-4">
+                <span className="text-sm text-gray-600 hidden md:inline">
+                  {user.email}
+                </span>
+                <Button
+                  variant="outline"
+                  onClick={handleSignOut}
+                >
+                  Logout
+                </Button>
+              </div>
+            </>
           ) : (
             <div className="flex items-center space-x-2">
               <Link href="/login">

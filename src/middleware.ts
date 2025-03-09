@@ -2,7 +2,11 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 // Define protected routes that require authentication
-const protectedRoutes = ['/auth/update-password']
+const protectedRoutes = [
+  '/auth/update-password',
+  '/admin/dashboard',
+  '/customer/dashboard'
+]
 
 // Define auth routes that should redirect to home if already authenticated
 const authRoutes = ['/login', '/register', '/forgot-password']
@@ -55,7 +59,16 @@ export async function middleware(request: NextRequest) {
   
   // Check if the route is an auth route and user is already authenticated
   if (authRoutes.some(route => path === route) && session) {
-    return NextResponse.redirect(new URL('/', request.url))
+    // Redirect to appropriate dashboard based on user role
+    // Note: This is a simple check. In a real app, you would use Supabase's user metadata
+    // or a separate table to determine user roles
+    const userEmail = session.user?.email || ''
+    
+    if (userEmail.includes('admin')) {
+      return NextResponse.redirect(new URL('/admin/dashboard', request.url))
+    } else {
+      return NextResponse.redirect(new URL('/customer/dashboard', request.url))
+    }
   }
 
   return response

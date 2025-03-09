@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
+import { isAdmin } from '@/lib/utils'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -17,12 +18,13 @@ export default function LoginPage() {
   const { signIn, user } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const redirectPath = searchParams.get('redirect') || '/'
+  const redirectPath = searchParams.get('redirect')
   
-  // If user is already logged in, redirect to home
+  // If user is already logged in, redirect to appropriate dashboard
   useEffect(() => {
     if (user) {
-      router.push('/')
+      const dashboardPath = isAdmin(user) ? '/admin/dashboard' : '/customer/dashboard'
+      router.push(dashboardPath)
     }
   }, [user, router])
 
@@ -33,7 +35,13 @@ export default function LoginPage() {
     try {
       await signIn(email, password)
       toast.success('Logged in successfully')
-      router.push(redirectPath)
+      
+      // If there's a redirect path in the URL, use that, otherwise redirect based on role
+      if (redirectPath) {
+        router.push(redirectPath)
+      } else {
+        // We'll let the useEffect handle the redirect based on user role
+      }
     } catch (error) {
       console.error('Login error:', error)
       toast.error('Failed to login. Please check your credentials.')
