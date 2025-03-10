@@ -12,6 +12,7 @@ import { toast } from 'sonner'
 import { ShoppingBag, Package, User, Heart } from 'lucide-react'
 import { getProducts, Product } from '@/lib/services/product-service'
 import { getUserOrders } from '@/lib/services/order-service'
+import { getWishlistCount } from '@/lib/services/wishlist-service'
 import ProductCard from '@/components/ProductCard'
 
 export default function CustomerDashboard() {
@@ -19,6 +20,7 @@ export default function CustomerDashboard() {
   const router = useRouter()
   const [recentProducts, setRecentProducts] = useState<Product[]>([])
   const [orderCount, setOrderCount] = useState(0)
+  const [wishlistCount, setWishlistCount] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
@@ -44,6 +46,10 @@ export default function CustomerDashboard() {
         // Fetch user orders
         const ordersData = await getUserOrders(user.id)
         setOrderCount(ordersData.length)
+
+        // Fetch wishlist count
+        const wishlistTotal = await getWishlistCount(user.id)
+        setWishlistCount(wishlistTotal)
       } catch (error) {
         console.error('Error fetching data:', error)
       } finally {
@@ -92,7 +98,7 @@ export default function CustomerDashboard() {
               <Heart className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
+              <div className="text-2xl font-bold">{wishlistCount}</div>
               <p className="text-xs text-muted-foreground">
                 Products you've saved for later
               </p>
