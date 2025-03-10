@@ -67,7 +67,7 @@ export default function CustomerDashboard() {
       <main className="container mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold mb-8">Welcome, {user.email?.split('@')[0]}</h1>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">My Orders</CardTitle>
@@ -99,41 +99,6 @@ export default function CustomerDashboard() {
               <Link href="/customer/wishlist" className="mt-4 inline-block">
                 <Button variant="outline" size="sm">
                   View Wishlist
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Profile</CardTitle>
-              <User className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-sm truncate">{user.email}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Manage your account details
-              </p>
-              <Link href="/customer/profile" className="mt-4 inline-block">
-                <Button variant="outline" size="sm">
-                  Edit Profile
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Browse Products</CardTitle>
-              <Package className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs text-muted-foreground">
-                Explore our product catalog
-              </p>
-              <Link href="/products" className="mt-4 inline-block">
-                <Button variant="outline" size="sm">
-                  Shop Now
                 </Button>
               </Link>
             </CardContent>

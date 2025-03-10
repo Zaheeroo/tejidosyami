@@ -2,14 +2,25 @@
 
 import React from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/contexts/SupabaseAuthContext'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { isAdmin } from '@/lib/utils'
 import ShoppingCart from './ShoppingCart'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Settings, LogOut, LayoutDashboard, UserCog } from 'lucide-react'
 
 export default function Navbar() {
   const { user, signOut } = useAuth()
+  const router = useRouter()
 
   const handleSignOut = async () => {
     try {
@@ -35,33 +46,42 @@ export default function Navbar() {
           </span>
         </Link>
         
-        <div className="flex items-center space-x-4">
-          <Link href="/products" className="text-gray-600 hover:text-gray-900">
-            Products
-          </Link>
-          {user && (
-            <Link href={dashboardLink} className="text-gray-600 hover:text-gray-900">
-              Dashboard
-            </Link>
-          )}
-        </div>
-        
         <div className="flex items-center space-x-4 lg:order-2">
           <ShoppingCart />
           
           {user ? (
             <>
-              <div className="flex items-center space-x-4">
-                <span className="text-sm text-gray-600 hidden md:inline">
-                  {user.email}
-                </span>
-                <Button
-                  variant="outline"
-                  onClick={handleSignOut}
-                >
-                  Logout
-                </Button>
-              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon">
+                    <Settings className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end">
+                  <DropdownMenuLabel>
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none">{user.email?.split('@')[0]}</p>
+                      <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => router.push(dashboardLink)}>
+                    <LayoutDashboard className="mr-2 h-4 w-4" />
+                    Dashboard
+                  </DropdownMenuItem>
+                  {!isAdmin(user) && (
+                    <DropdownMenuItem onClick={() => router.push('/customer/profile')}>
+                      <UserCog className="mr-2 h-4 w-4" />
+                      Edit Profile
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Logout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </>
           ) : (
             <div className="flex items-center space-x-2">
