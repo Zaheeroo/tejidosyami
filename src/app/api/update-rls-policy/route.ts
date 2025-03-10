@@ -54,14 +54,13 @@ export async function GET() {
           USING (auth.uid() = user_id);
         
         -- Policy for admins to view all orders
+        -- This uses a more flexible approach to detect admins
         CREATE POLICY "Admins can view all orders"
           ON orders
           FOR SELECT
           USING (
-            EXISTS (
-              SELECT 1 FROM user_roles
-              WHERE id = auth.uid() AND role = 'admin'
-            )
+            (auth.jwt() -> 'user_metadata' ->> 'role')::text = 'admin' OR
+            auth.jwt() ->> 'email' LIKE '%admin%'
           );
         
         -- Policy for admins to insert orders
@@ -69,10 +68,8 @@ export async function GET() {
           ON orders
           FOR INSERT
           WITH CHECK (
-            EXISTS (
-              SELECT 1 FROM user_roles
-              WHERE id = auth.uid() AND role = 'admin'
-            )
+            (auth.jwt() -> 'user_metadata' ->> 'role')::text = 'admin' OR
+            auth.jwt() ->> 'email' LIKE '%admin%'
           );
         
         -- Policy for admins to update orders
@@ -80,10 +77,8 @@ export async function GET() {
           ON orders
           FOR UPDATE
           USING (
-            EXISTS (
-              SELECT 1 FROM user_roles
-              WHERE id = auth.uid() AND role = 'admin'
-            )
+            (auth.jwt() -> 'user_metadata' ->> 'role')::text = 'admin' OR
+            auth.jwt() ->> 'email' LIKE '%admin%'
           );
       `
     });
@@ -101,11 +96,78 @@ export async function GET() {
           ON orders
           FOR ALL
           USING (auth.jwt() ->> 'role' = 'service_role');
+          
+        -- Also add a specific policy for service role to view all orders
+        DROP POLICY IF EXISTS "Service role can view all orders" ON orders;
+        CREATE POLICY "Service role can view all orders"
+          ON orders
+          FOR SELECT
+          USING (auth.jwt() ->> 'role' = 'service_role' OR auth.jwt() ->> 'role' = 'supabase_admin');
+          
+        -- Add a policy for service role to view all order items
+        DROP POLICY IF EXISTS "Service role can view all order items" ON order_items;
+        CREATE POLICY "Service role can view all order items"
+          ON order_items
+          FOR SELECT
+          USING (auth.jwt() ->> 'role' = 'service_role' OR auth.jwt() ->> 'role' = 'supabase_admin');
       `
     });
 
     if (serviceRoleError) {
       throw new Error(`Error updating service role policy: ${serviceRoleError.message}`);
+    }
+
+    // Also update the RLS policies for order_items to allow admins to view all order items
+    const { error: orderItemsError } = await supabaseAdmin.rpc('execute_sql', {
+      sql: `
+        -- Drop existing policies if they exist
+        DROP POLICY IF EXISTS "Users can view their own order items" ON order_items;
+        DROP POLICY IF EXISTS "Users can insert their own order items" ON order_items;
+        DROP POLICY IF EXISTS "Admins can view all order items" ON order_items;
+        DROP POLICY IF EXISTS "Admins can insert order items" ON order_items;
+        
+        -- Policy for users to view their own order items
+        CREATE POLICY "Users can view their own order items"
+          ON order_items
+          FOR SELECT
+          USING (EXISTS (
+            SELECT 1 FROM orders
+            WHERE orders.id = order_items.order_id
+            AND orders.user_id = auth.uid()
+          ));
+        
+        -- Policy for users to insert their own order items
+        CREATE POLICY "Users can insert their own order items"
+          ON order_items
+          FOR INSERT
+          WITH CHECK (EXISTS (
+            SELECT 1 FROM orders
+            WHERE orders.id = order_items.order_id
+            AND orders.user_id = auth.uid()
+          ));
+        
+        -- Policy for admins to view all order items
+        CREATE POLICY "Admins can view all order items"
+          ON order_items
+          FOR SELECT
+          USING (
+            (auth.jwt() -> 'user_metadata' ->> 'role')::text = 'admin' OR
+            auth.jwt() ->> 'email' LIKE '%admin%'
+          );
+        
+        -- Policy for admins to insert order items
+        CREATE POLICY "Admins can insert order items"
+          ON order_items
+          FOR INSERT
+          WITH CHECK (
+            (auth.jwt() -> 'user_metadata' ->> 'role')::text = 'admin' OR
+            auth.jwt() ->> 'email' LIKE '%admin%'
+          );
+      `
+    });
+
+    if (orderItemsError) {
+      throw new Error(`Error updating order items RLS policies: ${orderItemsError.message}`);
     }
 
     return NextResponse.json({

@@ -19,20 +19,24 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
 
-// Create a Badge component since we don't have access to the shadcn Badge component
-const Badge = ({ 
-  children, 
-  className = "" 
-}: { 
-  children: React.ReactNode, 
-  className?: string 
-}) => {
-  return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${className}`}>
-      {children}
-    </span>
-  )
+// Function to format date
+function formatDate(dateString: string) {
+  return new Date(dateString).toLocaleString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
 }
 
 export default function CustomerOrdersPage() {
@@ -40,6 +44,8 @@ export default function CustomerOrdersPage() {
   const router = useRouter()
   const [orders, setOrders] = useState<Order[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false)
 
   useEffect(() => {
     // If user is not loading and either not logged in or not a customer, redirect to home
@@ -78,29 +84,35 @@ export default function CustomerOrdersPage() {
   const getStatusBadge = (status: string) => {
     switch (status.toLowerCase()) {
       case 'completed':
-        return <Badge className="bg-green-500 text-white">Completed</Badge>
+        return <Badge className="bg-green-500 text-white border-none">Completed</Badge>
       case 'processing':
-        return <Badge className="bg-blue-500 text-white">Processing</Badge>
+        return <Badge className="bg-blue-500 text-white border-none">Processing</Badge>
       case 'shipped':
-        return <Badge className="bg-purple-500 text-white">Shipped</Badge>
+        return <Badge className="bg-purple-500 text-white border-none">Shipped</Badge>
       case 'cancelled':
-        return <Badge className="bg-red-500 text-white">Cancelled</Badge>
+        return <Badge className="bg-red-500 text-white border-none">Cancelled</Badge>
       default:
-        return <Badge className="bg-yellow-500 text-white">Pending</Badge>
+        return <Badge className="bg-yellow-500 text-white border-none">Pending</Badge>
     }
   }
 
   const getPaymentStatusBadge = (status: string) => {
     switch (status.toLowerCase()) {
       case 'paid':
-        return <Badge className="bg-green-500 text-white">Paid</Badge>
+        return <Badge className="bg-green-500 text-white border-none">Paid</Badge>
       case 'refunded':
-        return <Badge className="bg-orange-500 text-white">Refunded</Badge>
+        return <Badge className="bg-orange-500 text-white border-none">Refunded</Badge>
       case 'failed':
-        return <Badge className="bg-red-500 text-white">Failed</Badge>
+        return <Badge className="bg-red-500 text-white border-none">Failed</Badge>
       default:
-        return <Badge className="bg-yellow-500 text-white">Pending</Badge>
+        return <Badge className="bg-yellow-500 text-white border-none">Pending</Badge>
     }
+  }
+
+  // Function to view order details
+  const viewOrderDetails = (order: Order) => {
+    setSelectedOrder(order)
+    setIsDetailsOpen(true)
   }
 
   return (
@@ -145,29 +157,34 @@ export default function CustomerOrdersPage() {
                     <TableRow>
                       <TableHead>Order ID</TableHead>
                       <TableHead>Date</TableHead>
-                      <TableHead>Total</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Payment</TableHead>
+                      <TableHead>Products</TableHead>
+                      <TableHead>Total</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {orders.map((order) => (
                       <TableRow key={order.id}>
-                        <TableCell className="font-medium">
-                          {order.id.substring(0, 8)}...
+                        <TableCell className="font-mono text-sm">
+                          {order.id}
                         </TableCell>
                         <TableCell>
                           {new Date(order.created_at || '').toLocaleDateString()}
                         </TableCell>
-                        <TableCell>${order.total_amount.toFixed(2)}</TableCell>
                         <TableCell>{getStatusBadge(order.status)}</TableCell>
                         <TableCell>{getPaymentStatusBadge(order.payment_status)}</TableCell>
+                        <TableCell>
+                          {order.items?.reduce((sum, item) => sum + item.quantity, 0) || 0} items
+                        </TableCell>
+                        <TableCell>${order.total_amount.toFixed(2)}</TableCell>
                         <TableCell>
                           <Button 
                             variant="outline" 
                             size="sm"
-                            onClick={() => router.push(`/customer/orders/${order.id}`)}
+                            onClick={() => viewOrderDetails(order)}
+                            className="flex items-center"
                           >
                             <ExternalLink className="h-4 w-4 mr-1" />
                             Details
@@ -181,6 +198,76 @@ export default function CustomerOrdersPage() {
             )}
           </CardContent>
         </Card>
+
+        <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>Order Details</DialogTitle>
+            </DialogHeader>
+
+            {selectedOrder && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <h3 className="font-semibold mb-2">Order Information</h3>
+                    <div className="space-y-1 text-sm">
+                      <p><span className="font-medium">Order ID:</span> {selectedOrder.id}</p>
+                      <p><span className="font-medium">Date:</span> {formatDate(selectedOrder.created_at || '')}</p>
+                      <p><span className="font-medium">Status:</span> {getStatusBadge(selectedOrder.status)}</p>
+                      <p><span className="font-medium">Total Amount:</span> ${selectedOrder.total_amount.toFixed(2)}</p>
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold mb-2">Payment Information</h3>
+                    <div className="space-y-1 text-sm">
+                      <p><span className="font-medium">Payment Status:</span> {getPaymentStatusBadge(selectedOrder.payment_status)}</p>
+                      {selectedOrder.transaction_id && (
+                        <p><span className="font-medium">Transaction ID:</span> {selectedOrder.transaction_id}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="font-semibold mb-2">Order Items</h3>
+                  <div className="border rounded-lg overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Product</TableHead>
+                          <TableHead>Quantity</TableHead>
+                          <TableHead>Price</TableHead>
+                          <TableHead>Subtotal</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {selectedOrder.items?.map((item) => (
+                          <TableRow key={item.id}>
+                            <TableCell>{item.product?.name || 'Unknown Product'}</TableCell>
+                            <TableCell>{item.quantity}</TableCell>
+                            <TableCell>${item.price.toFixed(2)}</TableCell>
+                            <TableCell>${item.subtotal.toFixed(2)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+
+                <DialogFooter>
+                  <div className="flex justify-between items-center w-full">
+                    <div className="text-sm text-gray-500">
+                      Last updated: {formatDate(selectedOrder.updated_at || selectedOrder.created_at || '')}
+                    </div>
+                    <Button variant="outline" onClick={() => setIsDetailsOpen(false)}>
+                      Close
+                    </Button>
+                  </div>
+                </DialogFooter>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </main>
     </>
   )

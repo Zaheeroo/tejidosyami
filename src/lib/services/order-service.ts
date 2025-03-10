@@ -13,6 +13,10 @@ export interface Order {
   created_at?: string;
   updated_at?: string;
   items?: OrderItem[];
+  customer?: {
+    email: string;
+    name?: string;
+  };
 }
 
 export interface OrderItem {
@@ -64,6 +68,7 @@ export async function getOrders() {
     // Use admin client to bypass RLS
     const supabaseAdmin = createAdminClient();
     
+    // First try with admin client
     const { data, error } = await supabaseAdmin
       .from('orders')
       .select(`
@@ -71,13 +76,40 @@ export async function getOrders() {
         items:order_items(
           *,
           product:products(name, image_url)
+        ),
+        customer:users(
+          email,
+          name:raw_user_meta_data->name
         )
       `)
       .order('created_at', { ascending: false });
       
     if (error) {
-      console.error('Error fetching orders:', error);
-      throw error;
+      console.error('Error fetching orders with admin client:', error);
+      
+      // If admin client fails, try with regular client (will work if RLS policies are set up correctly)
+      console.log('Falling back to regular client...');
+      const { data: regularData, error: regularError } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          items:order_items(
+            *,
+            product:products(name, image_url)
+          ),
+          customer:users(
+            email,
+            name:raw_user_meta_data->name
+          )
+        `)
+        .order('created_at', { ascending: false });
+        
+      if (regularError) {
+        console.error('Error fetching orders with regular client:', regularError);
+        throw regularError;
+      }
+      
+      return regularData as Order[];
     }
     
     return data as Order[];
