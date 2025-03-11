@@ -4,12 +4,14 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import PaymentForm from '@/components/PaymentForm';
+import TiloPaymentForm from '@/components/TiloPaymentForm';
 import { useCart } from '@/lib/contexts/CartContext';
 import { useAuth } from '@/lib/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/supabase/supabase-client';
 import { v4 as uuidv4 } from 'uuid';
 import { Button } from '@/components/ui/button';
 import AuthDebug from '@/components/AuthDebug';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function CheckoutPage() {
   const searchParams = useSearchParams();
@@ -19,6 +21,7 @@ export default function CheckoutPage() {
   const [orderId, setOrderId] = useState<string>('');
   const [isCreatingOrder, setIsCreatingOrder] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [paymentProvider, setPaymentProvider] = useState('tilopay'); // Default to Tilopay
   
   useEffect(() => {
     // Only proceed if authentication loading is complete
@@ -168,13 +171,34 @@ export default function CheckoutPage() {
         <h1 className="text-2xl font-bold mb-6 text-center">Checkout</h1>
         
         {user && orderId && (
-          <PaymentForm
-            orderId={orderId}
-            amount={cartTotal}
-            customerEmail={user.email || ''}
-            customerName={user.user_metadata?.full_name || ''}
-            description={`Payment for order ${orderId}`}
-          />
+          <>
+            <div className="mb-6">
+              <Tabs defaultValue="tilopay" onValueChange={setPaymentProvider} className="w-full max-w-md mx-auto">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="tilopay">Tilopay</TabsTrigger>
+                  <TabsTrigger value="onvopay">Onvopay</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+            
+            {paymentProvider === 'tilopay' ? (
+              <TiloPaymentForm
+                orderId={orderId}
+                amount={cartTotal}
+                customerEmail={user.email || ''}
+                customerName={user.user_metadata?.full_name || ''}
+                description={`Payment for order ${orderId}`}
+              />
+            ) : (
+              <PaymentForm
+                orderId={orderId}
+                amount={cartTotal}
+                customerEmail={user.email || ''}
+                customerName={user.user_metadata?.full_name || ''}
+                description={`Payment for order ${orderId}`}
+              />
+            )}
+          </>
         )}
         
         {!user && (

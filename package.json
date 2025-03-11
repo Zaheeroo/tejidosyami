@@ -7,7 +7,14 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "setup": "node scripts/setup.js"
+    "setup": "node scripts/setup.js",
+    "test:tilopay": "ts-node src/scripts/test-tilopay.ts",
+    "test:tilopay:real": "ts-node src/scripts/test-tilopay-real.ts",
+    "test:tilopay:integration": "ts-node -r tsconfig-paths/register src/scripts/test-tilopay-integration.ts",
+    "test:import": "ts-node src/scripts/test-import.ts",
+    "test:tilopay:manual": "node src/scripts/serve-tilopay-test.js",
+    "test:tilopay:full": "node src/scripts/run-tilopay-test.js",
+    "test": "jest"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^0.0.48",
@@ -50,13 +57,19 @@
   },
   "devDependencies": {
     "@shadcn/ui": "^0.0.4",
+    "@types/jest": "^29.5.12",
     "@types/node": "^20.17.24",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18",
     "eslint": "^8",
     "eslint-config-next": "14.2.7",
+    "jest": "^29.7.0",
+    "msw": "^2.2.8",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
+    "ts-jest": "^29.1.2",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
     "typescript": "^5"
   }
 }

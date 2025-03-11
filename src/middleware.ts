@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { cookies } from 'next/headers'
 
 // Define protected routes that require authentication
 const protectedRoutes = [
@@ -71,6 +72,32 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // Check if the request is for an API route
+  if (request.nextUrl.pathname.startsWith('/api')) {
+    // Get the origin from the request headers or default to localhost:3001
+    const origin = request.headers.get('origin') || 'http://localhost:3001';
+    
+    // Create a new response object
+    const response = NextResponse.next();
+    
+    // Set CORS headers
+    response.headers.set('Access-Control-Allow-Origin', origin);
+    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Date, X-Api-Version');
+    response.headers.set('Access-Control-Allow-Credentials', 'true');
+    response.headers.set('Access-Control-Max-Age', '86400');
+    
+    // Handle preflight OPTIONS request
+    if (request.method === 'OPTIONS') {
+      return new NextResponse(null, {
+        status: 200,
+        headers: response.headers,
+      });
+    }
+    
+    return response;
+  }
+
   return response
 }
 
@@ -84,5 +111,7 @@ export const config = {
      * Feel free to modify this pattern to include more paths.
      */
     '/((?!_next/static|_next/image|favicon.ico).*)',
+    // Match all API routes
+    '/api/:path*',
   ],
 } 

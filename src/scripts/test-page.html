@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tilopay Manual Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #ff0033;
+            border-bottom: 2px solid #ff0033;
+            padding-bottom: 10px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #ff0033;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #cc0029;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f5f5f5;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+        .test-cards {
+            margin-top: 20px;
+            background-color: #f8f8f8;
+            padding: 15px;
+            border-radius: 4px;
+        }
+        .test-cards h3 {
+            margin-top: 0;
+        }
+        .test-cards table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .test-cards th, .test-cards td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        .test-cards th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <h1>Tilopay Manual Test</h1>
+    
+    <div class="form-group">
+        <label for="amount">Amount</label>
+        <input type="number" id="amount" value="10.99" step="0.01">
+    </div>
+    
+    <div class="form-group">
+        <label for="currency">Currency</label>
+        <select id="currency">
+            <option value="USD">USD</option>
+            <option value="EUR">EUR</option>
+            <option value="CRC">CRC</option>
+        </select>
+    </div>
+    
+    <div class="form-group">
+        <label for="description">Description</label>
+        <input type="text" id="description" value="Test payment">
+    </div>
+    
+    <div class="form-group">
+        <label for="customerEmail">Customer Email</label>
+        <input type="email" id="customerEmail" value="test@example.com">
+    </div>
+    
+    <div class="form-group">
+        <label for="customerName">Customer Name</label>
+        <input type="text" id="customerName" value="Test User">
+    </div>
+    
+    <div class="form-group">
+        <label for="testCard">Test Card</label>
+        <select id="testCard">
+            <option value="4012000000020071">Success (4012000000020071)</option>
+            <option value="4012000000020121">Auth Denied (4012000000020121)</option>
+            <option value="4112613451591116">Insufficient Funds (4112613451591116)</option>
+            <option value="4523080346468525">Invalid CVV (4523080346468525)</option>
+            <option value="4549179990476733">Lost or Stolen (4549179990476733)</option>
+        </select>
+    </div>
+    
+    <button id="createPayment">Create Payment</button>
+    
+    <div id="result" class="result" style="display: none;"></div>
+    
+    <div class="test-cards">
+        <h3>Test Cards</h3>
+        <table>
+            <tr>
+                <th>Card Type</th>
+                <th>Card Number</th>
+                <th>Expiry</th>
+                <th>CVV</th>
+                <th>3DS Password</th>
+            </tr>
+            <tr>
+                <td>Visa (Success)</td>
+                <td>4012000000020071</td>
+                <td>Any future date</td>
+                <td>Any 3 digits</td>
+                <td>3ds2</td>
+            </tr>
+            <tr>
+                <td>Visa (Auth Denied)</td>
+                <td>4012000000020121</td>
+                <td>Any future date</td>
+                <td>Any 3 digits</td>
+                <td>3ds2</td>
+            </tr>
+            <tr>
+                <td>Visa (Insufficient Funds)</td>
+                <td>4112613451591116</td>
+                <td>Any future date</td>
+                <td>Any 3 digits</td>
+                <td>3ds2</td>
+            </tr>
+            <tr>
+                <td>Visa (Invalid CVV)</td>
+                <td>4523080346468525</td>
+                <td>Any future date</td>
+                <td>Any 3 digits</td>
+                <td>3ds2</td>
+            </tr>
+            <tr>
+                <td>Visa (Lost or Stolen)</td>
+                <td>4549179990476733</td>
+                <td>Any future date</td>
+                <td>Any 3 digits</td>
+                <td>3ds2</td>
+            </tr>
+        </table>
+    </div>
+    
+    <script>
+        document.getElementById('createPayment').addEventListener('click', async () => {
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'block';
+            resultDiv.textContent = 'Creating payment...';
+            
+            try {
+                const timestamp = new Date().toISOString().replace(/[-:.TZ]/g, '');
+                const orderId = `manual-test-${timestamp}`;
+                
+                const paymentData = {
+                    amount: parseFloat(document.getElementById('amount').value),
+                    currency: document.getElementById('currency').value,
+                    orderId: orderId,
+                    description: document.getElementById('description').value,
+                    customerEmail: document.getElementById('customerEmail').value,
+                    customerName: document.getElementById('customerName').value.split(' ')[0],
+                    customerLastName: document.getElementById('customerName').value.split(' ').slice(1).join(' ') || 'User',
+                    redirectUrl: window.location.href + '?result=success',
+                    callbackUrl: 'https://example.com/webhook',
+                    testMode: true,
+                    testCardNumber: document.getElementById('testCard').value
+                };
+                
+                // Use direct URL instead of relative path
+                const apiUrl = 'http://localhost:3000/api/payments/create';
+                
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        ...paymentData,
+                        provider: 'tilopay'
+                    }),
+                    credentials: 'include',
+                    mode: 'cors'
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.innerHTML = `
+                        <h3>Payment Created Successfully!</h3>
+                        <p><strong>Order ID:</strong> ${orderId}</p>
+                        <p><strong>Payment ID:</strong> ${data.paymentId}</p>
+                        <p><strong>Payment URL:</strong> <a href="${data.paymentUrl}" target="_blank">${data.paymentUrl}</a></p>
+                        <p>Click the payment URL above to complete the payment process.</p>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <h3>Payment Creation Failed</h3>
+                        <p><strong>Error:</strong> ${data.error || 'Unknown error'}</p>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.textContent = `Error: ${error.message}`;
+                console.error('Payment creation error:', error);
+            }
+        });
+    </script>
+</body>
+</html> 
