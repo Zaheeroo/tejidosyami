@@ -1,130 +1,132 @@
 import axios from 'axios';
 
-// Define Onvopay API types
-export interface OnvopayPaymentRequest {
+// Define Tilopay API types
+export interface TilopayPaymentRequest {
   amount: number;
   currency: string;
   orderId: string;
-  description?: string;
   customerEmail: string;
   customerName?: string;
-  redirectUrl: string;
-  callbackUrl: string;
+  customerLastName?: string;
+  customerAddress?: string;
+  customerCity?: string;
+  customerState?: string;
+  customerZip?: string;
+  customerCountry?: string;
+  customerPhone?: string;
+  description?: string;
+  redirectUrl?: string;
+  callbackUrl?: string;
   testMode?: boolean;
   testCardNumber?: string;
 }
 
-export interface OnvopayPaymentResponse {
+export interface TilopayPaymentResponse {
   success: boolean;
   paymentUrl?: string;
   paymentId?: string;
   error?: string;
 }
 
-export interface OnvopayWebhookPayload {
+export interface TilopayWebhookPayload {
   paymentId: string;
   orderId: string;
+  status: string;
   amount: number;
   currency: string;
-  status: 'completed' | 'failed' | 'pending';
   transactionId?: string;
-  customerEmail: string;
-  timestamp: string;
-  signature: string;
+  paymentMethod?: string;
+  errorMessage?: string;
 }
 
-// Onvopay API configuration
-const ONVOPAY_API_URL = process.env.NEXT_PUBLIC_ONVOPAY_API_URL || 'https://api.onvopay.com';
-const ONVOPAY_API_KEY = process.env.NEXT_PUBLIC_ONVOPAY_API_KEY || '';
-const ONVOPAY_SECRET_KEY = process.env.ONVOPAY_SECRET_KEY || '';
-
-// Flag to use mock implementation for testing
-const USE_MOCK = true;
+// Tilopay API configuration
+const TILOPAY_API_URL = process.env.TILOPAY_API_URL || 'https://app.tilopay.com/api/v1';
+const TILOPAY_API_USER = process.env.TILOPAY_API_USER || '';
+const TILOPAY_API_PASSWORD = process.env.TILOPAY_API_PASSWORD || '';
 
 // Test card scenarios
-const TEST_CARD_SCENARIOS = {
-  '4242424242424242': { status: 'completed', message: 'Payment successful' },
-  '4111111111111111': { status: 'failed', message: 'Insufficient funds' },
-  '5555555555554444': { status: 'failed', message: 'Try again later' },
-  '5454545454545454': { status: 'failed', message: 'Stolen card' },
-  '378282246310005': { status: 'failed', message: 'Authentication failed' },
-  '6011111111111117': { status: 'failed', message: 'Expired card' },
-  '3566111111111113': { status: 'failed', message: 'Invalid card number' },
+const TEST_CARD_SCENARIOS: { [key: string]: { status: string; message: string } } = {
+  '4012000000020071': { status: 'succeeded', message: 'Payment successful' },
+  '4012000000020089': { status: 'succeeded', message: 'Payment successful' },
+  '4012000000020121': { status: 'failed', message: 'Authorization denied' },
+  '4111111111119999': { status: 'failed', message: 'Authorization denied' },
+  '4112613451591116': { status: 'failed', message: 'Insufficient funds' },
+  '4523080346468525': { status: 'failed', message: 'Invalid CVV' },
+  '4549179990476733': { status: 'failed', message: 'Lost or stolen card' },
 };
 
-// Create a payment request with Onvopay
-export async function createPayment(paymentData: OnvopayPaymentRequest): Promise<OnvopayPaymentResponse> {
+// Create a payment request with Tilopay
+export async function createPayment(paymentData: TilopayPaymentRequest): Promise<TilopayPaymentResponse> {
   try {
-    console.log('Creating payment with Onvopay:', paymentData);
-    
-    // Use mock implementation for testing
-    if (USE_MOCK) {
-      console.log('Using mock implementation for testing');
+    // For test mode, simulate payment response based on test card
+    if (paymentData.testMode && paymentData.testCardNumber) {
+      const cleanCardNumber = paymentData.testCardNumber.replace(/\s/g, '');
+      const scenario = TEST_CARD_SCENARIOS[cleanCardNumber];
       
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Generate a mock payment ID
-      const mockPaymentId = 'mock_' + Math.random().toString(36).substring(2, 15);
-      
-      // Handle test card scenarios if in test mode
-      if (paymentData.testMode && paymentData.testCardNumber) {
-        const cleanCardNumber = paymentData.testCardNumber.replace(/\s/g, '');
-        const scenario = TEST_CARD_SCENARIOS[cleanCardNumber as keyof typeof TEST_CARD_SCENARIOS];
-        
-        // Create a mock payment URL that includes test card info
-        const mockPaymentUrl = `${paymentData.redirectUrl}&mockPayment=true&paymentId=${mockPaymentId}&testCard=${cleanCardNumber}`;
-        
-        console.log(`Test payment with card ${cleanCardNumber}, scenario:`, scenario);
-        
-        return {
-          success: true,
-          paymentUrl: mockPaymentUrl,
-          paymentId: mockPaymentId
-        };
+      if (scenario) {
+        if (scenario.status === 'succeeded') {
+          return {
+            success: true,
+            paymentUrl: `${paymentData.redirectUrl}?orderId=${paymentData.orderId}&status=success`,
+            paymentId: `tilopay_${Date.now()}`
+          };
+        } else {
+          return {
+            success: false,
+            error: scenario.message
+          };
+        }
       }
-      
-      // Create a mock payment URL that redirects to the success page
-      const mockPaymentUrl = `${paymentData.redirectUrl}&mockPayment=true&paymentId=${mockPaymentId}`;
-      
-      return {
-        success: true,
-        paymentUrl: mockPaymentUrl,
-        paymentId: mockPaymentId
-      };
     }
     
-    // Real implementation
-    console.log('Using API URL:', ONVOPAY_API_URL);
-    console.log('Using API Key:', ONVOPAY_API_KEY.substring(0, 10) + '...');
-    
+    // Make the API call to process the payment
     const response = await axios.post(
-      `${ONVOPAY_API_URL}/payments/create`,
-      paymentData,
+      `${TILOPAY_API_URL}/processPayment`,
       {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${ONVOPAY_API_KEY}`
+        redirect: paymentData.redirectUrl,
+        callback: paymentData.callbackUrl,
+        amount: paymentData.amount.toFixed(2),
+        currency: paymentData.currency,
+        orderNumber: paymentData.orderId,
+        description: paymentData.description,
+        billToFirstName: paymentData.customerName || "Customer",
+        billToLastName: paymentData.customerLastName || "Name",
+        billToAddress: paymentData.customerAddress || "Address",
+        billToCity: paymentData.customerCity || "City",
+        billToState: paymentData.customerState || "SJ",
+        billToZipPostCode: paymentData.customerZip || "10000",
+        billToCountry: paymentData.customerCountry || "CR",
+        billToTelephone: paymentData.customerPhone || "88888888",
+        billToEmail: paymentData.customerEmail,
+        shipToFirstName: paymentData.customerName || "Customer",
+        shipToLastName: paymentData.customerLastName || "Name",
+        shipToAddress: paymentData.customerAddress || "Address",
+        shipToCity: paymentData.customerCity || "City",
+        shipToState: paymentData.customerState || "SJ",
+        shipToZipPostCode: paymentData.customerZip || "10000",
+        shipToCountry: paymentData.customerCountry || "CR",
+        shipToTelephone: paymentData.customerPhone || "88888888",
+        returnData: Buffer.from(paymentData.orderId).toString('base64')
+      },
+      {
+        auth: {
+          username: TILOPAY_API_USER,
+          password: TILOPAY_API_PASSWORD
         }
       }
     );
-
-    console.log('Onvopay response:', response.data);
-
-    if (response.data && response.data.success) {
-      return {
-        success: true,
-        paymentUrl: response.data.paymentUrl,
-        paymentId: response.data.paymentId
-      };
-    } else {
-      return {
-        success: false,
-        error: response.data.message || 'Payment creation failed'
-      };
+    
+    if (!response.data?.url) {
+      throw new Error('No payment URL returned from Tilopay');
     }
+    
+    return {
+      success: true,
+      paymentUrl: response.data.url,
+      paymentId: response.data.id || `tilopay_${Date.now()}`
+    };
+    
   } catch (error: any) {
-    console.error('Error creating payment:', error);
     return {
       success: false,
       error: error.response?.data?.message || error.message || 'Payment creation failed'
@@ -132,83 +134,47 @@ export async function createPayment(paymentData: OnvopayPaymentRequest): Promise
   }
 }
 
-// Verify Onvopay webhook signature
+// Verify Tilopay webhook signature
 export function verifyWebhookSignature(payload: any, signature: string): boolean {
-  // For mock implementation, always return true
-  if (USE_MOCK) {
-    console.log('Using mock implementation for webhook verification');
-    return true;
+  if (!signature) {
+    return false;
   }
   
-  // Real implementation
-  console.log('Verifying webhook signature:', signature);
-  
-  // Note: Implement the actual signature verification logic based on Onvopay's documentation
-  // This is a placeholder implementation
-  
-  // In a real implementation, you would:
-  // 1. Create a string from the payload
-  // 2. Generate a signature using the secret key
-  // 3. Compare with the provided signature
-  
-  // For testing purposes, return true
-  return true;
+  try {
+    // TODO: Implement signature verification based on Tilopay's documentation
+    // For now, return true in development
+    return process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
+  } catch (error) {
+    console.error('Error verifying webhook signature:', error);
+    return false;
+  }
 }
 
-// Get payment status from Onvopay
-export async function getPaymentStatus(paymentId: string, testCardNumber?: string): Promise<any> {
+// Get payment status from Tilopay
+export async function getPaymentStatus(paymentId: string): Promise<{
+  success: boolean;
+  status?: string;
+  error?: string;
+}> {
   try {
-    console.log('Getting payment status for:', paymentId);
-    
-    // Use mock implementation for testing
-    if (USE_MOCK) {
-      console.log('Using mock implementation for payment status');
-      
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // If test card number is provided, return the corresponding scenario
-      if (testCardNumber) {
-        const cleanCardNumber = testCardNumber.replace(/\s/g, '');
-        const scenario = TEST_CARD_SCENARIOS[cleanCardNumber as keyof typeof TEST_CARD_SCENARIOS];
-        
-        if (scenario) {
-          return {
-            paymentId,
-            status: scenario.status,
-            message: scenario.message,
-            amount: 100,
-            currency: 'USD',
-            transactionId: 'mock_tx_' + Math.random().toString(36).substring(2, 10)
-          };
-        }
-      }
-      
-      // Return mock payment status (default success)
-      return {
-        paymentId,
-        status: 'completed',
-        amount: 100,
-        currency: 'USD',
-        transactionId: 'mock_tx_' + Math.random().toString(36).substring(2, 10)
-      };
-    }
-    
-    // Real implementation
     const response = await axios.get(
-      `${ONVOPAY_API_URL}/payments/${paymentId}`,
+      `${TILOPAY_API_URL}/payments/${paymentId}`,
       {
-        headers: {
-          'Authorization': `Bearer ${ONVOPAY_API_KEY}`
+        auth: {
+          username: TILOPAY_API_USER,
+          password: TILOPAY_API_PASSWORD
         }
       }
     );
     
-    console.log('Payment status response:', response.data);
-    
-    return response.data;
+    return {
+      success: true,
+      status: response.data.status
+    };
   } catch (error: any) {
-    console.error('Error getting payment status:', error);
-    throw new Error(error.response?.data?.message || error.message || 'Failed to get payment status');
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to get payment status'
+    };
   }
 } 

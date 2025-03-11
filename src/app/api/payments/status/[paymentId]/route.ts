@@ -10,33 +10,43 @@ export async function GET(
     
     if (!paymentId) {
       return NextResponse.json(
-        { success: false, error: 'Payment ID is required' },
+        { error: 'Payment ID is required' },
         { status: 400 }
       );
     }
     
-    // Check if this is a test payment with a test card
-    const testCard = request.nextUrl.searchParams.get('testCard');
+    const result = await getPaymentStatus(paymentId);
     
-    // Get payment status from Onvopay
-    const paymentStatus = await getPaymentStatus(paymentId, testCard || undefined);
+    if (!result.success) {
+      return NextResponse.json(
+        { error: result.error || 'Failed to get payment status' },
+        { status: 500 }
+      );
+    }
     
-    return NextResponse.json({
-      success: true,
-      status: paymentStatus.status,
-      message: paymentStatus.message,
-      paymentId: paymentStatus.paymentId,
-      orderId: paymentStatus.orderId,
-      amount: paymentStatus.amount,
-      currency: paymentStatus.currency,
-      transactionId: paymentStatus.transactionId
-    });
+    return NextResponse.json(
+      { status: result.status },
+      { status: 200 }
+    );
     
   } catch (error: any) {
-    console.error('Error checking payment status:', error);
+    console.error('Error getting payment status:', error);
     return NextResponse.json(
-      { success: false, error: error.message || 'An unexpected error occurred' },
+      { error: error.message || 'Internal server error' },
       { status: 500 }
     );
   }
+}
+
+// Handle OPTIONS request for CORS
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Max-Age': '86400',
+    },
+  });
 } 
