@@ -16,7 +16,7 @@ interface PaymentStatus {
   paymentId?: string;
   orderId?: string;
   transactionId?: string;
-  provider?: 'onvopay' | 'paypal';
+  provider?: 'paypal';
 }
 
 // This component calls a server-side API to process the payment
@@ -87,6 +87,7 @@ export default function PaymentSuccessPage() {
               status: 'completed',
               orderId: orderId || undefined,
               paymentId: paymentId || undefined,
+              provider: 'paypal'
             });
           }
         } else {
@@ -127,6 +128,7 @@ export default function PaymentSuccessPage() {
             paymentId: data.paymentId,
             orderId: data.orderId || orderId,
             transactionId: data.transactionId,
+            provider: 'paypal'
           });
         } else {
           setPaymentStatus({
@@ -152,16 +154,13 @@ export default function PaymentSuccessPage() {
     if (orderId && mockPayment === 'true' && paymentId) {
       processPayment();
     } else if (orderId && paymentId) {
-      // This is a real payment that was redirected back from Onvopay or PayPal
-      // Determine if this is a PayPal payment
-      const isPayPal = paymentId.startsWith('PAY-') || paymentId.length > 20;
-      
+      // This is a payment that was redirected back from PayPal
       setPaymentStatus({
         success: true,
         status: 'completed',
         orderId: orderId,
         paymentId: paymentId,
-        provider: isPayPal ? 'paypal' : 'onvopay'
+        provider: 'paypal'
       });
       setIsLoading(false);
     } else {
@@ -201,7 +200,7 @@ export default function PaymentSuccessPage() {
                 )}
                 {paymentStatus.provider && (
                   <span className="block mt-1">
-                    Método de Pago: <span className="font-medium capitalize">{paymentStatus.provider === 'paypal' ? 'PayPal' : paymentStatus.provider}</span>
+                    Método de Pago: <span className="font-medium">PayPal</span>
                   </span>
                 )}
               </p>

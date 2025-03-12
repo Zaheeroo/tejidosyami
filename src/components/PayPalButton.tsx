@@ -41,7 +41,7 @@ export default function PayPalCheckoutButton({
           orderId,
           customerEmail,
           customerName,
-          description: description || `Payment for order ${orderId}`,
+          description: description || `Pago para el pedido ${orderId}`,
           returnUrl: `${window.location.origin}/checkout/success?orderId=${orderId}`,
           cancelUrl: `${window.location.origin}/checkout?cancelled=true`,
         }),
@@ -50,7 +50,7 @@ export default function PayPalCheckoutButton({
       const data = await response.json();
       
       if (!data.success) {
-        throw new Error(data.error || 'Failed to create PayPal order');
+        throw new Error(data.error || 'Error al crear la orden de PayPal');
       }
       
       return data.orderId;

@@ -243,7 +243,7 @@ export async function updateOrderStatus(orderId: string, status: string, payment
 }
 
 // Create a payment record for an order
-export async function createPaymentRecord(orderId: string, paymentId: string, amount: number, currency: string, status: string, provider: string = 'onvopay', transactionId?: string, paymentMethod?: string) {
+export async function createPaymentRecord(orderId: string, paymentId: string, amount: number, currency: string, status: string, provider: string = 'paypal', transactionId?: string, paymentMethod?: string) {
   const { error } = await supabase
     .from('payments')
     .insert({

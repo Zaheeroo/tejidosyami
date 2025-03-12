@@ -70,9 +70,9 @@ export async function POST(request: NextRequest) {
           amount: 0, // This will be updated with the actual amount from the order
           currency: 'USD',
           status: paymentStatus,
-          provider: 'onvopay',
+          provider: 'paypal',
           transaction_id: paymentId,
-          payment_method: testCard ? 'test_card' : 'credit_card'
+          payment_method: testCard ? 'test_card' : 'paypal'
         });
       
       if (paymentError) {
