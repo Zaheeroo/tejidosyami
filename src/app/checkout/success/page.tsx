@@ -16,6 +16,7 @@ interface PaymentStatus {
   paymentId?: string;
   orderId?: string;
   transactionId?: string;
+  provider?: 'onvopay' | 'paypal';
 }
 
 // This component calls a server-side API to process the payment
@@ -151,60 +152,22 @@ export default function PaymentSuccessPage() {
     if (orderId && mockPayment === 'true' && paymentId) {
       processPayment();
     } else if (orderId && paymentId) {
-      // This is a real payment that was redirected back from Onvopay
+      // This is a real payment that was redirected back from Onvopay or PayPal
+      // Determine if this is a PayPal payment
+      const isPayPal = paymentId.startsWith('PAY-') || paymentId.length > 20;
+      
       setPaymentStatus({
         success: true,
         status: 'completed',
         orderId: orderId,
         paymentId: paymentId,
+        provider: isPayPal ? 'paypal' : 'onvopay'
       });
       setIsLoading(false);
     } else {
       setIsLoading(false);
     }
-  }, []); // Empty dependency array means this runs once on mount
-  
-  // Render loading state
-  if (isLoading) {
-    return (
-      <>
-        <Navbar />
-        <main className="container mx-auto px-4 py-8">
-          <div className="max-w-md mx-auto text-center">
-            <p className="text-lg">Processing your payment...</p>
-          </div>
-        </main>
-        <AuthDebug />
-      </>
-    );
-  }
-  
-  // Render error state if no order ID
-  if (!orderId) {
-    return (
-      <>
-        <Navbar />
-        <main className="container mx-auto px-4 py-8">
-          <div className="max-w-md mx-auto text-center">
-            <div className="mb-6 flex justify-center">
-              <AlertCircle className="h-16 w-16 text-red-500" />
-            </div>
-            <h1 className="text-2xl font-bold mb-4">Invalid Order</h1>
-            <p className="text-gray-600 mb-6">
-              No order ID was provided. Please try again or contact customer support.
-            </p>
-            <Button
-              className="w-full"
-              onClick={() => router.push('/products')}
-            >
-              Return to Shop
-            </Button>
-          </div>
-        </main>
-        <AuthDebug />
-      </>
-    );
-  }
+  }, []);
   
   // Render based on payment status
   return (
@@ -212,7 +175,11 @@ export default function PaymentSuccessPage() {
       <Navbar />
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-md mx-auto text-center">
-          {paymentStatus?.status === 'completed' ? (
+          {isLoading ? (
+            <div className="text-center">
+              <p className="text-lg">Processing your payment...</p>
+            </div>
+          ) : paymentStatus?.status === 'completed' ? (
             <>
               <div className="mb-6 flex justify-center">
                 <CheckCircle className="h-16 w-16 text-green-500" />
@@ -232,13 +199,61 @@ export default function PaymentSuccessPage() {
                     Transaction ID: <span className="font-medium">{paymentStatus.transactionId}</span>
                   </span>
                 )}
+                {paymentStatus.provider && (
+                  <span className="block mt-1">
+                    Payment Method: <span className="font-medium capitalize">{paymentStatus.provider}</span>
+                  </span>
+                )}
               </p>
               
               <p className="text-gray-600 mb-8">
                 A confirmation email has been sent to your email address.
               </p>
+              
+              <div className="flex justify-center space-x-4">
+                <Button onClick={() => router.push('/customer/dashboard')}>
+                  Go to Dashboard
+                </Button>
+                <Button variant="outline" onClick={() => router.push('/products')}>
+                  Continue Shopping
+                </Button>
+              </div>
             </>
-          ) : paymentStatus?.status === 'failed' ? (
+          ) : paymentStatus?.status === 'pending' ? (
+            <>
+              <div className="mb-6 flex justify-center">
+                <AlertTriangle className="h-16 w-16 text-yellow-500" />
+              </div>
+              
+              <h1 className="text-2xl font-bold mb-4">Payment Pending</h1>
+              
+              <p className="text-gray-600 mb-6">
+                Your payment is being processed. This may take a few moments.
+                {orderId && (
+                  <span className="block mt-2">
+                    Order ID: <span className="font-medium">{orderId}</span>
+                  </span>
+                )}
+                {paymentStatus.message && (
+                  <span className="block mt-2 text-yellow-600">
+                    {paymentStatus.message}
+                  </span>
+                )}
+              </p>
+              
+              <Alert className="mb-6">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Payment in Progress</AlertTitle>
+                <AlertDescription>
+                  Please do not close this page. We'll update you once the payment is complete.
+                </AlertDescription>
+              </Alert>
+              
+              <Button variant="outline" onClick={() => router.push('/customer/dashboard')}>
+                Go to Dashboard
+              </Button>
+            </>
+          ) : (
             <>
               <div className="mb-6 flex justify-center">
                 <AlertCircle className="h-16 w-16 text-red-500" />
@@ -246,76 +261,24 @@ export default function PaymentSuccessPage() {
               
               <h1 className="text-2xl font-bold mb-4">Payment Failed</h1>
               
-              {paymentStatus.message && (
-                <Alert variant="destructive" className="mb-6">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertTitle>Error</AlertTitle>
-                  <AlertDescription>
+              <p className="text-gray-600 mb-6">
+                We couldn't process your payment. Please try again.
+                {paymentStatus?.message && (
+                  <span className="block mt-2 text-red-600">
                     {paymentStatus.message}
-                  </AlertDescription>
-                </Alert>
-              )}
-              
-              <p className="text-gray-600 mb-6">
-                Your payment could not be processed. Please try again or use a different payment method.
-                {orderId && (
-                  <span className="block mt-2">
-                    Order ID: <span className="font-medium">{orderId}</span>
                   </span>
                 )}
               </p>
-            </>
-          ) : (
-            <>
-              <div className="mb-6 flex justify-center">
-                <AlertTriangle className="h-16 w-16 text-yellow-500" />
+              
+              <div className="flex justify-center space-x-4">
+                <Button onClick={() => router.push('/checkout')}>
+                  Try Again
+                </Button>
+                <Button variant="outline" onClick={() => router.push('/customer/dashboard')}>
+                  Go to Dashboard
+                </Button>
               </div>
-              
-              <h1 className="text-2xl font-bold mb-4">Payment Status Unknown</h1>
-              
-              <p className="text-gray-600 mb-6">
-                We couldn't determine the status of your payment. Please check your email for confirmation
-                or contact customer support.
-                {orderId && (
-                  <span className="block mt-2">
-                    Order ID: <span className="font-medium">{orderId}</span>
-                  </span>
-                )}
-              </p>
             </>
-          )}
-          
-          <div className="space-y-4">
-            <Button
-              className="w-full"
-              onClick={() => router.push('/customer/orders')}
-            >
-              View Your Orders
-            </Button>
-            
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => router.push('/products')}
-            >
-              Continue Shopping
-            </Button>
-          </div>
-          
-          {testCard && (
-            <div className="mt-8 p-4 bg-muted rounded-md text-left">
-              <p className="text-sm font-medium mb-2">Test Payment Information:</p>
-              <p className="text-sm">Card Number: {testCard}</p>
-              {paymentStatus?.status && (
-                <p className="text-sm">Status: {paymentStatus.status}</p>
-              )}
-              {paymentStatus?.message && (
-                <p className="text-sm">Message: {paymentStatus.message}</p>
-              )}
-              <p className="text-sm text-muted-foreground mt-2">
-                This was a test payment. No actual charges were made.
-              </p>
-            </div>
           )}
         </div>
       </main>

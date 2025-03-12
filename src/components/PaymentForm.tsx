@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import PayPalCheckoutButton from './PayPalButton';
 
 interface PaymentFormProps {
   orderId: string;
@@ -47,6 +48,7 @@ export default function PaymentForm({
   const [isLoading, setIsLoading] = useState(false);
   const [selectedTestCard, setSelectedTestCard] = useState('');
   const [paymentMode, setPaymentMode] = useState('normal');
+  const [paymentMethod, setPaymentMethod] = useState('card');
   
   const handlePayment = async () => {
     try {
@@ -95,130 +97,174 @@ export default function PaymentForm({
       <CardHeader>
         <CardTitle>Complete Your Payment</CardTitle>
         <CardDescription>
-          You will be redirected to Onvopay to complete your payment securely.
+          Choose your preferred payment method to complete your order.
         </CardDescription>
       </CardHeader>
       
-      <Tabs defaultValue="normal" onValueChange={setPaymentMode}>
+      <Tabs defaultValue="card" onValueChange={setPaymentMethod}>
         <div className="px-6">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="normal">Normal Payment</TabsTrigger>
-            <TabsTrigger value="test">Test Payment</TabsTrigger>
+            <TabsTrigger value="card">Credit Card</TabsTrigger>
+            <TabsTrigger value="paypal">PayPal</TabsTrigger>
           </TabsList>
         </div>
         
-        <TabsContent value="normal">
-          <CardContent>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="order-id">Order ID</Label>
-                <Input id="order-id" value={orderId} disabled />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="amount">Amount</Label>
-                <Input 
-                  id="amount" 
-                  value={`$${amount.toFixed(2)}`} 
-                  disabled 
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input 
-                  id="email" 
-                  type="email" 
-                  value={customerEmail} 
-                  disabled 
-                />
-              </div>
-              
-              {description && (
-                <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
-                  <Input 
-                    id="description" 
-                    value={description} 
-                    disabled 
-                  />
-                </div>
-              )}
+        <TabsContent value="card">
+          <Tabs defaultValue="normal" onValueChange={setPaymentMode}>
+            <div className="px-6">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="normal">Normal Payment</TabsTrigger>
+                <TabsTrigger value="test">Test Payment</TabsTrigger>
+              </TabsList>
             </div>
-          </CardContent>
+            
+            <TabsContent value="normal">
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="order-id">Order ID</Label>
+                    <Input id="order-id" value={orderId} disabled />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="amount">Amount</Label>
+                    <Input 
+                      id="amount" 
+                      value={`$${amount.toFixed(2)}`} 
+                      disabled 
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input 
+                      id="email" 
+                      type="email" 
+                      value={customerEmail} 
+                      disabled 
+                    />
+                  </div>
+                  
+                  {description && (
+                    <div className="space-y-2">
+                      <Label htmlFor="description">Description</Label>
+                      <Input 
+                        id="description" 
+                        value={description} 
+                        disabled 
+                      />
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </TabsContent>
+            
+            <TabsContent value="test">
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="test-card">Select a Test Card</Label>
+                    <Select 
+                      value={selectedTestCard} 
+                      onValueChange={setSelectedTestCard}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a test card" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {TEST_CARDS.map((card) => (
+                          <SelectItem key={card.number} value={card.number}>
+                            {card.type} - {card.scenario}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  {selectedTestCard && (
+                    <div className="space-y-2 p-4 bg-muted rounded-md">
+                      <p className="text-sm font-medium">Test Card Details:</p>
+                      <p className="text-sm">Card Number: {selectedTestCard}</p>
+                      <p className="text-sm">Name: {TEST_CARDS.find(card => card.number === selectedTestCard)?.name}</p>
+                      <p className="text-sm">Scenario: {TEST_CARDS.find(card => card.number === selectedTestCard)?.scenario}</p>
+                      <p className="text-sm text-muted-foreground mt-2">
+                        Use any future expiration date and any 3-digit CVV.
+                      </p>
+                    </div>
+                  )}
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="test-amount">Amount</Label>
+                    <Input 
+                      id="test-amount" 
+                      value={`$${amount.toFixed(2)}`} 
+                      disabled 
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </TabsContent>
+            
+            <CardFooter className="flex flex-col space-y-4">
+              <Button 
+                className="w-full" 
+                onClick={handlePayment}
+                disabled={isLoading || (paymentMode === 'test' && !selectedTestCard)}
+              >
+                {isLoading ? 'Processing...' : 'Pay with Card'}
+              </Button>
+              
+              {paymentMode === 'test' && (
+                <Accordion type="single" collapsible className="w-full">
+                  <AccordionItem value="test-info">
+                    <AccordionTrigger className="text-sm">About Test Payments</AccordionTrigger>
+                    <AccordionContent>
+                      <p className="text-sm text-muted-foreground">
+                        These test cards simulate different payment scenarios. In a real environment, 
+                        these would trigger specific responses from the payment gateway. All test 
+                        transactions are recorded in your Onvopay dashboard but no actual charges are made.
+                      </p>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              )}
+            </CardFooter>
+          </Tabs>
         </TabsContent>
         
-        <TabsContent value="test">
+        <TabsContent value="paypal">
           <CardContent>
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="test-card">Select a Test Card</Label>
-                <Select 
-                  value={selectedTestCard} 
-                  onValueChange={setSelectedTestCard}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a test card" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TEST_CARDS.map((card) => (
-                      <SelectItem key={card.number} value={card.number}>
-                        {card.type} - {card.scenario}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="paypal-order-id">Order ID</Label>
+                <Input id="paypal-order-id" value={orderId} disabled />
               </div>
               
-              {selectedTestCard && (
-                <div className="space-y-2 p-4 bg-muted rounded-md">
-                  <p className="text-sm font-medium">Test Card Details:</p>
-                  <p className="text-sm">Card Number: {selectedTestCard}</p>
-                  <p className="text-sm">Name: {TEST_CARDS.find(card => card.number === selectedTestCard)?.name}</p>
-                  <p className="text-sm">Scenario: {TEST_CARDS.find(card => card.number === selectedTestCard)?.scenario}</p>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    Use any future expiration date and any 3-digit CVV.
-                  </p>
-                </div>
-              )}
-              
               <div className="space-y-2">
-                <Label htmlFor="test-amount">Amount</Label>
+                <Label htmlFor="paypal-amount">Amount</Label>
                 <Input 
-                  id="test-amount" 
+                  id="paypal-amount" 
                   value={`$${amount.toFixed(2)}`} 
                   disabled 
+                />
+              </div>
+              
+              <div className="mt-6">
+                <PayPalCheckoutButton
+                  orderId={orderId}
+                  amount={amount}
+                  customerEmail={customerEmail}
+                  customerName={customerName}
+                  description={description || `Payment for order ${orderId}`}
+                  onError={(error) => {
+                    console.error('PayPal payment error:', error);
+                  }}
                 />
               </div>
             </div>
           </CardContent>
         </TabsContent>
       </Tabs>
-      
-      <CardFooter className="flex flex-col space-y-4">
-        <Button 
-          className="w-full" 
-          onClick={handlePayment}
-          disabled={isLoading || (paymentMode === 'test' && !selectedTestCard)}
-        >
-          {isLoading ? 'Processing...' : 'Pay Now'}
-        </Button>
-        
-        {paymentMode === 'test' && (
-          <Accordion type="single" collapsible className="w-full">
-            <AccordionItem value="test-info">
-              <AccordionTrigger className="text-sm">About Test Payments</AccordionTrigger>
-              <AccordionContent>
-                <p className="text-sm text-muted-foreground">
-                  These test cards simulate different payment scenarios. In a real environment, 
-                  these would trigger specific responses from the payment gateway. All test 
-                  transactions are recorded in your Onvopay dashboard but no actual charges are made.
-                </p>
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
-        )}
-      </CardFooter>
     </Card>
   );
 } 
