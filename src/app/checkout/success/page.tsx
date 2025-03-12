@@ -4,10 +4,12 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, AlertCircle, AlertTriangle } from 'lucide-react';
+import { CheckCircle, AlertCircle, AlertTriangle, Package } from 'lucide-react';
 import { useCart } from '@/lib/contexts/CartContext';
 import AuthDebug from '@/components/AuthDebug';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Separator } from '@/components/ui/separator';
+import { getOrderById, Order, OrderItem as OrderItemType } from '@/lib/services/order-service';
 
 interface PaymentStatus {
   success: boolean;
@@ -19,6 +21,12 @@ interface PaymentStatus {
   provider?: 'paypal';
 }
 
+interface OrderDetails {
+  id: string;
+  total_amount: number;
+  items: OrderItemType[];
+}
+
 // This component calls a server-side API to process the payment
 export default function PaymentSuccessPage() {
   const searchParams = useSearchParams();
@@ -26,6 +34,7 @@ export default function PaymentSuccessPage() {
   const { clearCart } = useCart();
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [orderDetails, setOrderDetails] = useState<OrderDetails | null>(null);
   
   // Get the order ID from the URL
   const orderId = searchParams.get('orderId');
@@ -37,6 +46,24 @@ export default function PaymentSuccessPage() {
   useEffect(() => {
     // Clear the cart
     clearCart();
+    
+    // Fetch order details if we have an order ID
+    const fetchOrderDetails = async () => {
+      if (orderId) {
+        try {
+          const orderData = await getOrderById(orderId);
+          if (orderData && orderData.items) {
+            setOrderDetails({
+              id: orderData.id,
+              total_amount: orderData.total_amount,
+              items: orderData.items
+            });
+          }
+        } catch (error) {
+          console.error('Error fetching order details:', error);
+        }
+      }
+    };
     
     // Process the payment only once on page load
     const processPayment = async () => {
@@ -151,6 +178,8 @@ export default function PaymentSuccessPage() {
       }
     };
     
+    fetchOrderDetails();
+    
     if (orderId && mockPayment === 'true' && paymentId) {
       processPayment();
     } else if (orderId && paymentId) {
@@ -186,26 +215,71 @@ export default function PaymentSuccessPage() {
               
               <h1 className="text-2xl font-bold mb-4">¡Pago Exitoso!</h1>
               
-              <p className="text-gray-600 mb-6">
+              <p className="text-gray-600 mb-4">
                 Gracias por su compra. Su pago ha sido procesado exitosamente.
-                {orderId && (
-                  <span className="block mt-2">
-                    ID de Pedido: <span className="font-medium">{orderId}</span>
-                  </span>
-                )}
-                {paymentStatus.transactionId && (
-                  <span className="block mt-1">
-                    ID de Transacción: <span className="font-medium">{paymentStatus.transactionId}</span>
-                  </span>
-                )}
-                {paymentStatus.provider && (
-                  <span className="block mt-1">
-                    Método de Pago: <span className="font-medium">PayPal</span>
-                  </span>
-                )}
               </p>
               
-              <p className="text-gray-600 mb-8">
+              {/* Order Details Card */}
+              <div className="bg-gray-50 rounded-lg p-4 mb-6 text-left">
+                <div className="flex items-center gap-2 mb-2">
+                  <Package className="h-5 w-5 text-gray-700" />
+                  <h3 className="font-semibold">Detalles del Pedido</h3>
+                </div>
+                
+                <div className="text-sm space-y-1">
+                  {orderId && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">ID de Pedido:</span>
+                      <span className="font-medium">{orderId}</span>
+                    </div>
+                  )}
+                  
+                  {paymentStatus.transactionId && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">ID de Transacción:</span>
+                      <span className="font-medium">{paymentStatus.transactionId}</span>
+                    </div>
+                  )}
+                  
+                  {paymentStatus.provider && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Método de Pago:</span>
+                      <span className="font-medium">PayPal</span>
+                    </div>
+                  )}
+                  
+                  {orderDetails && (
+                    <>
+                      <Separator className="my-2" />
+                      
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Artículos:</span>
+                        <span className="font-medium">
+                          {orderDetails.items.reduce((total, item) => total + item.quantity, 0)}
+                        </span>
+                      </div>
+                      
+                      <div className="max-h-24 overflow-y-auto my-1">
+                        {orderDetails.items.map((item, index) => (
+                          <div key={index} className="flex justify-between text-xs py-1">
+                            <span>{item.quantity} x {item.product?.name || 'Producto'}</span>
+                            <span>${item.subtotal.toFixed(2)}</span>
+                          </div>
+                        ))}
+                      </div>
+                      
+                      <Separator className="my-2" />
+                      
+                      <div className="flex justify-between font-semibold">
+                        <span>Total:</span>
+                        <span>${orderDetails.total_amount.toFixed(2)}</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+              
+              <p className="text-gray-600 mb-6">
                 Se ha enviado un correo de confirmación a su dirección de email.
               </p>
               
