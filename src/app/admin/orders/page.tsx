@@ -8,7 +8,7 @@ import { isAdmin } from '@/lib/utils'
 import Navbar from '@/components/Navbar'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
-import { ChevronLeft, ShoppingBag, Package, Clock, CheckCircle, XCircle, RefreshCcw, Shield, X, ExternalLink, Search } from 'lucide-react'
+import { ChevronLeft, ShoppingBag, Package, Clock, CheckCircle, XCircle, RefreshCcw, Shield, X, ExternalLink, Search, AlertTriangle } from 'lucide-react'
 import { Order, updateOrderStatus } from '@/lib/services/order-service'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -37,6 +37,16 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 // Helper function to get status variant for the badge
 function getStatusVariant(status: string): "default" | "secondary" | "destructive" | "outline" {
@@ -67,6 +77,15 @@ function formatDate(dateString: string) {
   });
 }
 
+// Available order statuses
+const ORDER_STATUSES = [
+  { value: 'Pending', label: 'Pending' },
+  { value: 'Processing', label: 'Processing' },
+  { value: 'Shipped', label: 'Shipped' },
+  { value: 'Completed', label: 'Completed' },
+  { value: 'Cancelled', label: 'Cancelled' }
+];
+
 export default function OrdersPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
@@ -79,6 +98,12 @@ export default function OrdersPage() {
   const [paymentFilter, setPaymentFilter] = useState<string>('all')
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
+  
+  // Status update state
+  const [isStatusUpdateOpen, setIsStatusUpdateOpen] = useState(false)
+  const [orderToUpdate, setOrderToUpdate] = useState<Order | null>(null)
+  const [newStatus, setNewStatus] = useState<string>('')
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
 
   useEffect(() => {
     // If user is not loading and either not logged in or not an admin, redirect to home
@@ -180,16 +205,50 @@ export default function OrdersPage() {
     }
   }
 
-  const handleUpdateStatus = async (orderId: string, status: string) => {
+  // Function to open status update dialog
+  const openStatusUpdate = (order: Order) => {
+    setOrderToUpdate(order)
+    setNewStatus(order.status)
+    setIsStatusUpdateOpen(true)
+  }
+
+  // Function to handle status update
+  const handleUpdateStatus = async () => {
+    if (!orderToUpdate || !newStatus) return;
+    
     try {
-      await updateOrderStatus(orderId, status)
+      setIsUpdatingStatus(true)
+      
+      // Call API to update order status
+      const response = await fetch('/api/admin/update-order-status', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          orderId: orderToUpdate.id,
+          status: newStatus
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to update order status');
+      }
+      
+      // Update local state
       setOrders(orders.map(order => 
-        order.id === orderId ? { ...order, status } : order
+        order.id === orderToUpdate.id ? { ...order, status: newStatus } : order
       ))
-      toast.success(`Order status updated to ${status}`)
-    } catch (error) {
+      
+      toast.success(`Order status updated to ${newStatus}`)
+      setIsStatusUpdateOpen(false)
+    } catch (error: any) {
       console.error('Error updating order status:', error)
-      toast.error('Failed to update order status')
+      toast.error(`Failed to update order status: ${error.message}`)
+    } finally {
+      setIsUpdatingStatus(false)
     }
   }
 
@@ -326,19 +385,30 @@ export default function OrdersPage() {
                           ) : 'N/A'}
                         </TableCell>
                         <TableCell>
-                          <Badge 
-                            variant={getStatusVariant(order.status)}
-                            className={`${
-                              order.status.toLowerCase() === 'pending' ? 'bg-yellow-500 hover:bg-yellow-600' :
-                              order.status.toLowerCase() === 'completed' ? 'bg-green-500 hover:bg-green-600' :
-                              order.status.toLowerCase() === 'processing' ? 'bg-blue-500 hover:bg-blue-600' :
-                              order.status.toLowerCase() === 'shipped' ? 'bg-purple-500 hover:bg-purple-600' :
-                              order.status.toLowerCase() === 'cancelled' ? 'bg-red-500 hover:bg-red-600' :
-                              'bg-yellow-500 hover:bg-yellow-600'
-                            } text-white border-none`}
-                          >
-                            {order.status}
-                          </Badge>
+                          <div className="flex items-center space-x-2">
+                            <Badge 
+                              variant={getStatusVariant(order.status)}
+                              className={`${
+                                order.status.toLowerCase() === 'pending' ? 'bg-yellow-500 hover:bg-yellow-600' :
+                                order.status.toLowerCase() === 'completed' ? 'bg-green-500 hover:bg-green-600' :
+                                order.status.toLowerCase() === 'processing' ? 'bg-blue-500 hover:bg-blue-600' :
+                                order.status.toLowerCase() === 'shipped' ? 'bg-purple-500 hover:bg-purple-600' :
+                                order.status.toLowerCase() === 'cancelled' ? 'bg-red-500 hover:bg-red-600' :
+                                'bg-yellow-500 hover:bg-yellow-600'
+                              } text-white border-none`}
+                            >
+                              {order.status}
+                            </Badge>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-6 w-6" 
+                              onClick={() => openStatusUpdate(order)}
+                              title="Update Status"
+                            >
+                              <RefreshCcw className="h-3 w-3" />
+                            </Button>
+                          </div>
                         </TableCell>
                         <TableCell>
                           {getPaymentStatusBadge(order.payment_status)}
@@ -369,6 +439,7 @@ export default function OrdersPage() {
           </CardContent>
         </Card>
 
+        {/* Order Details Dialog */}
         <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
           <DialogContent className="max-w-3xl">
             <DialogHeader>
@@ -383,7 +454,22 @@ export default function OrdersPage() {
                     <div className="space-y-1 text-sm">
                       <p><span className="font-medium">Order ID:</span> {selectedOrder.id}</p>
                       <p><span className="font-medium">Date:</span> {formatDate(selectedOrder.created_at || '')}</p>
-                      <p><span className="font-medium">Status:</span> <Badge variant={getStatusVariant(selectedOrder.status)}>{selectedOrder.status}</Badge></p>
+                      <p>
+                        <span className="font-medium">Status:</span>{' '}
+                        <Badge variant={getStatusVariant(selectedOrder.status)}>{selectedOrder.status}</Badge>{' '}
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-6 w-6 align-middle" 
+                          onClick={() => {
+                            setIsDetailsOpen(false)
+                            setTimeout(() => openStatusUpdate(selectedOrder), 100)
+                          }}
+                          title="Update Status"
+                        >
+                          <RefreshCcw className="h-3 w-3" />
+                        </Button>
+                      </p>
                       <p><span className="font-medium">Total Amount:</span> ${selectedOrder.total_amount.toFixed(2)}</p>
                     </div>
                   </div>
@@ -436,6 +522,86 @@ export default function OrdersPage() {
             )}
           </DialogContent>
         </Dialog>
+
+        {/* Status Update Alert Dialog */}
+        <AlertDialog open={isStatusUpdateOpen} onOpenChange={setIsStatusUpdateOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Update Order Status</AlertDialogTitle>
+              <AlertDialogDescription>
+                You are about to change the status of order <span className="font-mono font-medium">{orderToUpdate?.id}</span>.
+                This action will be recorded and may trigger notifications to the customer.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            
+            <div className="py-4">
+              <div className="flex items-center space-x-4 mb-4">
+                <div className="flex-shrink-0">
+                  <Badge 
+                    variant={getStatusVariant(orderToUpdate?.status || '')}
+                    className={`${
+                      (orderToUpdate?.status || '').toLowerCase() === 'pending' ? 'bg-yellow-500' :
+                      (orderToUpdate?.status || '').toLowerCase() === 'completed' ? 'bg-green-500' :
+                      (orderToUpdate?.status || '').toLowerCase() === 'processing' ? 'bg-blue-500' :
+                      (orderToUpdate?.status || '').toLowerCase() === 'shipped' ? 'bg-purple-500' :
+                      (orderToUpdate?.status || '').toLowerCase() === 'cancelled' ? 'bg-red-500' :
+                      'bg-yellow-500'
+                    } text-white border-none`}
+                  >
+                    {orderToUpdate?.status}
+                  </Badge>
+                </div>
+                <div className="flex items-center">
+                  <span className="mx-2">→</span>
+                </div>
+                <div className="flex-grow">
+                  <Select value={newStatus} onValueChange={setNewStatus}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select new status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ORDER_STATUSES.map(status => (
+                        <SelectItem key={status.value} value={status.value}>
+                          {status.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              {newStatus.toLowerCase() === 'cancelled' && (
+                <div className="flex p-4 mb-4 text-amber-800 bg-amber-50 rounded-lg">
+                  <AlertTriangle className="h-5 w-5 mr-2 flex-shrink-0" />
+                  <div>
+                    <span className="font-medium">Warning:</span> Cancelling an order cannot be undone and may affect inventory and customer satisfaction.
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isUpdatingStatus}>Cancel</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={handleUpdateStatus}
+                disabled={isUpdatingStatus || newStatus === orderToUpdate?.status}
+                className={`${
+                  newStatus.toLowerCase() === 'cancelled' ? 'bg-red-600 hover:bg-red-700' : 
+                  'bg-blue-600 hover:bg-blue-700'
+                }`}
+              >
+                {isUpdatingStatus ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Updating...
+                  </>
+                ) : (
+                  'Update Status'
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </main>
     </>
   )

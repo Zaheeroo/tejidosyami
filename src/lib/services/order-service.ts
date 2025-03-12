@@ -14,15 +14,20 @@ export interface Order {
   updated_at?: string;
   items?: OrderItem[];
   customer?: {
+    name: string;
     email: string;
-    name?: string;
   };
+  shipping_address?: any;
+  billing_address?: any;
+  metadata?: any;
+  customer_name?: string;
+  customer_email?: string;
 }
 
 export interface OrderItem {
-  id?: string;
-  order_id: string;
+  id: string;
   product_id: string;
+  order_id: string;
   quantity: number;
   price: number;
   subtotal: number;
@@ -208,38 +213,25 @@ export async function createOrder(userId: string, cartItems: CartItem[], totalAm
 }
 
 // Update order status
-export async function updateOrderStatus(orderId: string, status: string, paymentStatus?: string, transactionId?: string) {
-  try {
-    // Use admin client to bypass RLS for admin operations
-    const supabaseAdmin = createAdminClient();
-    
-    const updates: any = { status };
-    
-    if (paymentStatus) {
-      updates.payment_status = paymentStatus;
-    }
-    
-    if (transactionId) {
-      updates.transaction_id = transactionId;
-    }
-    
-    updates.updated_at = new Date().toISOString();
-    
-    const { error } = await supabaseAdmin
-      .from('orders')
-      .update(updates)
-      .eq('id', orderId);
-      
-    if (error) {
-      console.error(`Error updating order ${orderId}:`, error);
-      throw error;
-    }
-    
-    return true;
-  } catch (error) {
-    console.error('Error in updateOrderStatus:', error);
-    throw error;
+export async function updateOrderStatus(orderId: string, status: string): Promise<Order> {
+  const response = await fetch('/api/admin/update-order-status', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      orderId,
+      status
+    }),
+  });
+
+  const data = await response.json();
+  
+  if (!data.success) {
+    throw new Error(data.error || 'Failed to update order status');
   }
+  
+  return data.order;
 }
 
 // Create a payment record for an order
