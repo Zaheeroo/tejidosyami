@@ -1,6 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { capturePayPalPayment } from '@/lib/services/paypal-service';
 import { supabase } from '@/lib/supabase/supabase-client';
+import { createClient } from '@supabase/supabase-js';
+
+// Create a Supabase admin client with service role key
+const createAdminClient = () => {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  
+  if (!supabaseServiceKey) {
+    console.error('SUPABASE_SERVICE_ROLE_KEY is not defined');
+    return null;
+  }
+  
+  return createClient(supabaseUrl, supabaseServiceKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  });
+};
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,6 +42,15 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    // Create admin client to bypass RLS
+    const supabaseAdmin = createAdminClient();
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { success: false, error: 'Failed to create admin client' },
+        { status: 500 }
+      );
+    }
+    
     // Get cart data from localStorage (this would be sent from the client)
     let cartData;
     try {
@@ -32,7 +60,7 @@ export async function POST(request: NextRequest) {
       
       if (!cartData) {
         // Check if the order already exists in the database
-        const { data: existingOrder, error: checkError } = await supabase
+        const { data: existingOrder, error: checkError } = await supabaseAdmin
           .from('orders')
           .select('id, payment_status')
           .eq('id', shopOrderId)
@@ -85,7 +113,7 @@ export async function POST(request: NextRequest) {
     console.log('PayPal capture API: Payment captured successfully');
     
     // Check if the order already exists in the database
-    const { data: existingOrder, error: checkError } = await supabase
+    const { data: existingOrder, error: checkError } = await supabaseAdmin
       .from('orders')
       .select('id')
       .eq('id', shopOrderId)
@@ -103,7 +131,7 @@ export async function POST(request: NextRequest) {
       // Create the order in the database now that payment is confirmed
       console.log('Creating order in database after payment confirmation');
       
-      const { error: orderError } = await supabase
+      const { error: orderError } = await supabaseAdmin
         .from('orders')
         .insert({
           id: shopOrderId,
@@ -141,14 +169,14 @@ export async function POST(request: NextRequest) {
         subtotal: item.product.price * item.quantity
       }));
       
-      const { error: itemsError } = await supabase
+      const { error: itemsError } = await supabaseAdmin
         .from('order_items')
         .insert(orderItems);
       
       if (itemsError) {
         console.error('Error creating order items:', itemsError);
         // If there's an error with order items, delete the order
-        await supabase.from('orders').delete().eq('id', shopOrderId);
+        await supabaseAdmin.from('orders').delete().eq('id', shopOrderId);
         return NextResponse.json(
           { success: false, error: 'Failed to create order items' },
           { status: 500 }
@@ -158,7 +186,7 @@ export async function POST(request: NextRequest) {
       // Update existing order status
       console.log('Updating existing order status in database');
       
-      const { error: orderError } = await supabase
+      const { error: orderError } = await supabaseAdmin
         .from('orders')
         .update({ 
           payment_status: 'paid',
@@ -180,7 +208,7 @@ export async function POST(request: NextRequest) {
     console.log('PayPal capture API: Order created/updated successfully, creating payment record');
     
     // Create a payment record
-    const { error: paymentError } = await supabase
+    const { error: paymentError } = await supabaseAdmin
       .from('payments')
       .insert({
         order_id: shopOrderId,
