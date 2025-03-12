@@ -50,6 +50,9 @@ export default function CustomerDashboard() {
         // Fetch wishlist count
         const wishlistTotal = await getWishlistCount(user.id)
         setWishlistCount(wishlistTotal)
+
+        // Log to verify
+        console.log('Order count:', ordersData.length, 'orders:', ordersData)
       } catch (error) {
         console.error('Error fetching data:', error)
       } finally {
@@ -82,7 +85,7 @@ export default function CustomerDashboard() {
             <CardContent>
               <div className="text-2xl font-bold">{orderCount}</div>
               <p className="text-xs text-muted-foreground">
-                View your order history
+                Total number of orders placed
               </p>
               <Link href="/customer/orders" className="mt-4 inline-block">
                 <Button variant="outline" size="sm">

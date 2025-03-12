@@ -184,6 +184,34 @@ export default function PaymentSuccessPage() {
       processPayment();
     } else if (orderId && paymentId) {
       // This is a payment that was redirected back from PayPal
+      // We need to update the order status in the database
+      (async () => {
+        try {
+          // Update order status in database
+          const response = await fetch('/api/payments/paypal/update-status', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              orderId,
+              paymentId,
+              status: 'paid'
+            }),
+          });
+          
+          const data = await response.json();
+          
+          if (data.success) {
+            console.log('Order status updated successfully');
+          } else {
+            console.error('Error updating order status:', data.error);
+          }
+        } catch (error) {
+          console.error('Error updating order status:', error);
+        }
+      })();
+      
       setPaymentStatus({
         success: true,
         status: 'completed',

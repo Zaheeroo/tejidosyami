@@ -20,6 +20,9 @@ export default function CustomerHome() {
         setIsLoading(true)
         const orders = await getUserOrders(user.id)
         setOrderCount(orders.length)
+        
+        // Log to verify
+        console.log('CustomerHome - Order count:', orders.length, 'orders:', orders)
       } catch (error) {
         console.error('Error fetching order count:', error)
       } finally {
@@ -44,7 +47,7 @@ export default function CustomerHome() {
             <div className="flex flex-col">
               <h2 className="text-lg font-medium mb-2">My Orders</h2>
               <div className="text-4xl font-bold mb-2">{isLoading ? '...' : orderCount}</div>
-              <p className="text-gray-500 mb-4">View your order history</p>
+              <p className="text-gray-500 mb-4">Total number of orders placed</p>
               <Link href="/customer/orders">
                 <Button variant="outline">View Orders</Button>
               </Link>
