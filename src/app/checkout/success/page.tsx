@@ -47,11 +47,17 @@ export default function PaymentSuccessPage() {
     // Clear the cart
     clearCart();
     
+    console.log('Success page: Order ID from URL:', orderId);
+    console.log('Success page: Payment ID from URL:', paymentId);
+    
     // Fetch order details if we have an order ID
     const fetchOrderDetails = async () => {
       if (orderId) {
         try {
+          console.log('Success page: Fetching order details for order ID:', orderId);
           const orderData = await getOrderById(orderId);
+          console.log('Success page: Order details fetched:', orderData);
+          
           if (orderData && orderData.items) {
             setOrderDetails({
               id: orderData.id,

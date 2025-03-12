@@ -62,6 +62,11 @@ export default function CustomerOrdersPage() {
           setIsLoading(true)
           const ordersData = await getUserOrders(user.id)
           setOrders(ordersData)
+          
+          // Log to verify
+          console.log('Orders page - Order count:', ordersData.length, 'distinct orders')
+          console.log('Orders page - Total items across all orders:', ordersData.reduce((total, order) => 
+            total + (order.items?.reduce((sum, item) => sum + item.quantity, 0) || 0), 0))
         } catch (error) {
           console.error('Error loading orders:', error)
           toast.error('Failed to load orders')
@@ -176,7 +181,7 @@ export default function CustomerOrdersPage() {
                         <TableCell>{getStatusBadge(order.status)}</TableCell>
                         <TableCell>{getPaymentStatusBadge(order.payment_status)}</TableCell>
                         <TableCell>
-                          {order.items?.reduce((sum, item) => sum + item.quantity, 0) || 0} items
+                          {order.items?.reduce((sum, item) => sum + item.quantity, 0) || 0} productos
                         </TableCell>
                         <TableCell>${order.total_amount.toFixed(2)}</TableCell>
                         <TableCell>

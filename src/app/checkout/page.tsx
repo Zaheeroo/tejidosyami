@@ -35,8 +35,8 @@ export default function CheckoutPage() {
       return;
     }
     
-    // Create a new order in the database
-    const createOrder = async () => {
+    // Generate a temporary order ID without creating an order in the database yet
+    const generateTemporaryOrderId = () => {
       try {
         if (!user) {
           setError('You must be logged in to checkout');
@@ -50,60 +50,36 @@ export default function CheckoutPage() {
           return;
         }
         
-        console.log('Creating order for user:', user.id);
+        console.log('Generating temporary order ID for user:', user.id);
+        console.log('Cart items:', cart);
         
-        // Generate a new order ID
-        const newOrderId = uuidv4();
+        // Generate a new order ID but don't save to database yet
+        const tempOrderId = uuidv4();
+        console.log('Generated temporary order ID:', tempOrderId);
         
-        // Create order in the database
-        const { error: orderError } = await supabase
-          .from('orders')
-          .insert({
-            id: newOrderId,
-            user_id: user.id,
-            total_amount: cartTotal,
-            status: 'pending',
-            payment_status: 'pending',
-            created_at: new Date().toISOString()
-          });
-        
-        if (orderError) {
-          console.error('Order creation error:', orderError);
-          throw new Error(orderError.message);
-        }
-        
-        // Create order items
-        const orderItems = cart.map(item => ({
-          order_id: newOrderId,
-          product_id: item.product.id,
-          quantity: item.quantity,
-          price: item.product.price,
-          subtotal: item.product.price * item.quantity
+        // Store cart items in localStorage for later use
+        localStorage.setItem(`cart_${tempOrderId}`, JSON.stringify({
+          items: cart,
+          total: cartTotal,
+          userId: user.id,
+          createdAt: new Date().toISOString()
         }));
         
-        const { error: itemsError } = await supabase
-          .from('order_items')
-          .insert(orderItems);
-        
-        if (itemsError) {
-          console.error('Order items creation error:', itemsError);
-          throw new Error(itemsError.message);
-        }
-        
-        console.log('Order created successfully:', newOrderId);
-        
         // Set the order ID for the payment form
-        setOrderId(newOrderId);
+        setOrderId(tempOrderId);
         setIsCreatingOrder(false);
         
       } catch (err: any) {
-        console.error('Error creating order:', err);
-        setError(err.message || 'Failed to create order');
+        console.error('Error generating temporary order ID:', err);
+        setError(err.message || 'Failed to prepare checkout');
         setIsCreatingOrder(false);
       }
     };
     
-    createOrder();
+    // Only generate a temporary order ID if we don't have an existing one
+    if (!existingOrderId) {
+      generateTemporaryOrderId();
+    }
   }, [cart, cartTotal, searchParams, user, loading]);
   
   // Show loading state while authentication is being checked

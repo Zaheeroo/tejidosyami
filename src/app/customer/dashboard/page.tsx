@@ -52,7 +52,15 @@ export default function CustomerDashboard() {
         setWishlistCount(wishlistTotal)
 
         // Log to verify
-        console.log('Order count:', ordersData.length, 'orders:', ordersData)
+        console.log('Order count:', ordersData.length, 'distinct orders')
+        console.log('Total items across all orders:', ordersData.reduce((total, order) => 
+          total + (order.items?.reduce((sum, item) => sum + item.quantity, 0) || 0), 0))
+        
+        // Log each order with its items
+        ordersData.forEach((order, index) => {
+          console.log(`Order ${index + 1} (ID: ${order.id}):`, 
+            order.items?.reduce((sum, item) => sum + item.quantity, 0) || 0, 'items')
+        })
       } catch (error) {
         console.error('Error fetching data:', error)
       } finally {

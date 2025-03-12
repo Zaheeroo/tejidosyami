@@ -29,6 +29,8 @@ export default function PayPalCheckoutButton({
   
   const createOrder = async () => {
     try {
+      console.log('Creating PayPal order for shop order ID:', orderId);
+      
       // Create a PayPal order
       const response = await fetch('/api/payments/paypal/create', {
         method: 'POST',
@@ -43,7 +45,7 @@ export default function PayPalCheckoutButton({
           customerName,
           description: description || `Pago para el pedido ${orderId}`,
           returnUrl: `${window.location.origin}/checkout/success?orderId=${orderId}`,
-          cancelUrl: `${window.location.origin}/checkout?cancelled=true`,
+          cancelUrl: `${window.location.origin}/checkout?cancelled=true&orderId=${orderId}`,
         }),
       });
       
@@ -53,6 +55,7 @@ export default function PayPalCheckoutButton({
         throw new Error(data.error || 'Error al crear la orden de PayPal');
       }
       
+      console.log('PayPal order created successfully:', data.orderId);
       return data.orderId;
     } catch (error: any) {
       console.error('Error creating PayPal order:', error);
@@ -66,6 +69,15 @@ export default function PayPalCheckoutButton({
     setIsProcessing(true);
     
     try {
+      console.log('PayPal payment approved. Capturing payment for order:', orderId);
+      
+      // Get cart data from localStorage
+      const cartDataString = localStorage.getItem(`cart_${orderId}`);
+      if (!cartDataString) {
+        console.error('Cart data not found in localStorage');
+      }
+      const cartData = cartDataString ? JSON.parse(cartDataString) : null;
+      
       // Capture the funds from the transaction
       const response = await fetch('/api/payments/paypal/capture', {
         method: 'POST',
@@ -75,6 +87,7 @@ export default function PayPalCheckoutButton({
         body: JSON.stringify({
           paypalOrderId: data.orderID,
           shopOrderId: orderId,
+          cartData: cartData
         }),
       });
       
@@ -83,6 +96,11 @@ export default function PayPalCheckoutButton({
       if (!captureData.success) {
         throw new Error(captureData.error || 'Error al procesar el pago con PayPal');
       }
+      
+      console.log('Payment captured successfully:', captureData);
+      
+      // Clear cart data from localStorage
+      localStorage.removeItem(`cart_${orderId}`);
       
       // Handle successful payment
       toast.success('¡Pago exitoso!');

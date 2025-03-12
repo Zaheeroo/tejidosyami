@@ -57,6 +57,8 @@ async function getAccessToken(): Promise<string> {
 // Create a PayPal order
 export async function createPayPalOrder(paymentData: PayPalOrderRequest): Promise<PayPalOrderResponse> {
   try {
+    console.log('PayPal service: Creating PayPal order for shop order ID:', paymentData.orderId);
+    
     const accessToken = await getAccessToken();
     
     const payload = {
@@ -80,6 +82,8 @@ export async function createPayPalOrder(paymentData: PayPalOrderRequest): Promis
       }
     };
     
+    console.log('PayPal service: Sending request to PayPal API with payload:', JSON.stringify(payload));
+    
     const response = await axios.post(
       `${PAYPAL_API_URL}/v2/checkout/orders`,
       payload,
@@ -90,6 +94,8 @@ export async function createPayPalOrder(paymentData: PayPalOrderRequest): Promis
         }
       }
     );
+    
+    console.log('PayPal service: PayPal API response:', response.data);
     
     return {
       success: true,

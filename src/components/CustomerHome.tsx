@@ -22,7 +22,9 @@ export default function CustomerHome() {
         setOrderCount(orders.length)
         
         // Log to verify
-        console.log('CustomerHome - Order count:', orders.length, 'orders:', orders)
+        console.log('CustomerHome - Order count:', orders.length, 'distinct orders')
+        console.log('CustomerHome - Total items across all orders:', orders.reduce((total, order) => 
+          total + (order.items?.reduce((sum, item) => sum + item.quantity, 0) || 0), 0))
       } catch (error) {
         console.error('Error fetching order count:', error)
       } finally {
