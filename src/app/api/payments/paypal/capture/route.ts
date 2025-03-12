@@ -137,7 +137,7 @@ export async function POST(request: NextRequest) {
           id: shopOrderId,
           user_id: cartData.userId,
           total_amount: cartData.total,
-          status: 'completed',
+          status: 'pending',
           payment_status: 'paid',
           transaction_id: captureResult.transactionId,
           created_at: new Date().toISOString(),
@@ -190,7 +190,7 @@ export async function POST(request: NextRequest) {
         .from('orders')
         .update({ 
           payment_status: 'paid',
-          status: 'completed',
+          status: 'pending',
           transaction_id: captureResult.transactionId,
           updated_at: new Date().toISOString()
         })

@@ -96,6 +96,7 @@ export default function CustomerOrdersPage() {
         return <Badge className="bg-purple-500 text-white border-none">Shipped</Badge>
       case 'cancelled':
         return <Badge className="bg-red-500 text-white border-none">Cancelled</Badge>
+      case 'pending':
       default:
         return <Badge className="bg-yellow-500 text-white border-none">Pending</Badge>
     }

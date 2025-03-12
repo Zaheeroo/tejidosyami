@@ -251,6 +251,9 @@ export default function PaymentSuccessPage() {
               
               <p className="text-gray-600 mb-4">
                 Gracias por su compra. Su pago ha sido procesado exitosamente.
+                <span className="block mt-2">
+                  Su pedido está pendiente de procesamiento. Recibirá actualizaciones por correo electrónico.
+                </span>
               </p>
               
               {/* Order Details Card */}
