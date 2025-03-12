@@ -3,15 +3,16 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { useAuth } from '@/lib/hooks/useAuth'
+import { useAuth } from '@/lib/contexts/SupabaseAuthContext'
 import { isAdmin } from '@/lib/utils'
 import Navbar from '@/components/Navbar'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
 import { ChevronLeft, ShoppingBag, Package, Clock, CheckCircle, XCircle, RefreshCcw, Shield, X, ExternalLink, Search } from 'lucide-react'
-import { getOrders, Order, updateOrderStatus } from '@/lib/services/order-service'
+import { Order, updateOrderStatus } from '@/lib/services/order-service'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { supabase } from '@/lib/supabase/supabase-client'
 import {
   Select,
   SelectContent,
@@ -27,7 +28,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { supabase } from '@/lib/supabase/supabase-client'
 import { Badge } from '@/components/ui/badge'
 import {
   Dialog,
@@ -67,14 +67,6 @@ function formatDate(dateString: string) {
   });
 }
 
-// Function to view order details
-function viewOrderDetails(order: Order) {
-  // You can implement this function to show a modal or navigate to a details page
-  console.log('Viewing order details:', order)
-  // For now, we'll just show the order details in a toast
-  toast(`Order ${order.id} - ${order.items?.length || 0} items - Total: $${order.total_amount.toFixed(2)}`)
-}
-
 export default function OrdersPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
@@ -102,101 +94,16 @@ export default function OrdersPage() {
         setIsLoading(true)
         setError(null)
         
-        console.log('Fetching orders...')
+        // Use the API endpoint to fetch orders
+        const response = await fetch('/api/admin/get-all-orders');
+        const data = await response.json();
         
-        // Try the direct API endpoint first (since it works reliably)
-        try {
-          console.log('Using direct API endpoint as primary method...')
-          const response = await fetch('/api/admin/get-all-orders')
-          const data = await response.json()
-          
-          if (data.success && data.orders && data.orders.length > 0) {
-            console.log('Orders from API endpoint:', data.orders)
-            setOrders(data.orders)
-            // No error message needed since this is now the primary method
-            setError(null)
-            return
-          } else if (!data.success) {
-            console.error('API endpoint error:', data.error)
-            setError(`API endpoint error: ${data.error}`)
-          }
-        } catch (apiError: any) {
-          console.error('Error fetching from API endpoint:', apiError)
-          setError(`API error: ${apiError.message}`)
+        if (!data.success) {
+          throw new Error(data.error || 'Failed to fetch orders');
         }
         
-        // If API endpoint failed, try to get orders using the order service
-        try {
-          console.log('API endpoint failed, trying order service...')
-          const ordersData = await getOrders()
-          console.log('Orders from service:', ordersData)
-          
-          if (ordersData && ordersData.length > 0) {
-            setOrders(ordersData)
-            // If we got orders successfully, clear any error
-            setError(null)
-            return
-          } else {
-            console.log('No orders returned from service, trying direct query...')
-          }
-        } catch (serviceError: any) {
-          console.error('Error from order service:', serviceError)
-          
-          // If the error is about the service role key, show a helpful message
-          if (serviceError.message && (
-              serviceError.message.includes('supabaseKey') || 
-              serviceError.message.includes('service_role')
-            )) {
-            setError((prevError) => 
-              prevError 
-                ? `${prevError}. Service role key is not available or RLS policies need to be updated.` 
-                : 'Service role key is not available or RLS policies need to be updated. Please visit the Fix RLS page to update the RLS policies.'
-            )
-          } else {
-            setError((prevError) => 
-              prevError 
-                ? `${prevError}. Service error: ${serviceError.message}` 
-                : `Service error: ${serviceError.message}`
-            )
-          }
-        }
-        
-        // If both API endpoint and service method failed, try to query the orders table directly
-        try {
-          console.log('Trying direct query as last resort...')
-          const { data: directOrders, error: directError } = await supabase
-            .from('orders')
-            .select(`
-              *,
-              items:order_items(
-                *,
-                product:products(name, image_url)
-              )
-            `)
-            .order('created_at', { ascending: false })
-          
-          console.log('Direct orders query:', directOrders)
-          console.log('Direct query error:', directError)
-          
-          // If direct query worked, use the results
-          if (directOrders && directOrders.length > 0) {
-            setOrders(directOrders as Order[])
-            // If we got orders directly, show a different message
-            if (error) {
-              setError('Using direct query results. For better performance, please fix RLS policies.')
-            }
-          } else if (directError) {
-            // If all methods failed, show a combined error
-            setError(`Direct query error: ${directError.message}. Please update RLS policies.`)
-          }
-        } catch (directQueryError: any) {
-          console.error('Error querying orders directly:', directQueryError)
-          setError((prevError) => 
-            prevError 
-              ? `${prevError}. Additional error: ${directQueryError.message}` 
-              : `Error: ${directQueryError.message}`
-          )
-        }
+        console.log('Orders loaded from API:', data.orders.length);
+        setOrders(data.orders);
       } catch (error: any) {
         console.error('Error loading orders:', error)
         toast.error('Failed to load orders')
@@ -286,23 +193,6 @@ export default function OrdersPage() {
     }
   }
 
-  const createTestOrder = async () => {
-    try {
-      const response = await fetch('/api/create-test-order')
-      const data = await response.json()
-      
-      if (data.success) {
-        toast.success('Test order created successfully')
-        loadOrders() // Reload orders
-      } else {
-        toast.error(`Failed to create test order: ${data.error}`)
-      }
-    } catch (error: any) {
-      console.error('Error creating test order:', error)
-      toast.error(`Error: ${error.message}`)
-    }
-  }
-
   // Function to view order details
   const viewOrderDetails = (order: Order) => {
     setSelectedOrder(order)
@@ -332,14 +222,6 @@ export default function OrdersPage() {
               >
                 <RefreshCcw className="h-4 w-4 mr-1" />
                 Refresh
-              </Button>
-              <Button 
-                variant="default" 
-                size="sm"
-                onClick={createTestOrder}
-                className="flex items-center"
-              >
-                Create Test Order
               </Button>
             </div>
           </div>
