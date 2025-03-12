@@ -56,7 +56,7 @@ export default function PayPalCheckoutButton({
       return data.orderId;
     } catch (error: any) {
       console.error('Error creating PayPal order:', error);
-      toast.error(error.message || 'Failed to create PayPal order');
+      toast.error(error.message || 'Error al crear la orden de PayPal');
       if (onError) onError(error);
       throw error;
     }
@@ -81,11 +81,11 @@ export default function PayPalCheckoutButton({
       const captureData = await response.json();
       
       if (!captureData.success) {
-        throw new Error(captureData.error || 'Failed to capture PayPal payment');
+        throw new Error(captureData.error || 'Error al procesar el pago con PayPal');
       }
       
       // Handle successful payment
-      toast.success('Payment successful!');
+      toast.success('¡Pago exitoso!');
       
       if (onSuccess) {
         onSuccess(captureData);
@@ -96,7 +96,7 @@ export default function PayPalCheckoutButton({
       
     } catch (error: any) {
       console.error('Error capturing PayPal payment:', error);
-      toast.error(error.message || 'Failed to process payment');
+      toast.error(error.message || 'Error al procesar el pago');
       if (onError) onError(error);
       setIsProcessing(false);
     }
@@ -109,7 +109,8 @@ export default function PayPalCheckoutButton({
           layout: 'vertical',
           color: 'gold',
           shape: 'rect',
-          label: 'pay'
+          label: 'pay',
+          tagline: false
         }}
         disabled={isProcessing}
         forceReRender={[amount, orderId]}
@@ -117,11 +118,11 @@ export default function PayPalCheckoutButton({
         onApprove={onApprove}
         onError={(err) => {
           console.error('PayPal error:', err);
-          toast.error('PayPal encountered an error');
+          toast.error('PayPal encontró un error');
           if (onError) onError(err);
         }}
         onCancel={() => {
-          toast.info('Payment cancelled');
+          toast.info('Pago cancelado');
         }}
       />
     </div>

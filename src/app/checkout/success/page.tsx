@@ -177,7 +177,7 @@ export default function PaymentSuccessPage() {
         <div className="max-w-md mx-auto text-center">
           {isLoading ? (
             <div className="text-center">
-              <p className="text-lg">Processing your payment...</p>
+              <p className="text-lg">Procesando su pago...</p>
             </div>
           ) : paymentStatus?.status === 'completed' ? (
             <>
@@ -185,37 +185,37 @@ export default function PaymentSuccessPage() {
                 <CheckCircle className="h-16 w-16 text-green-500" />
               </div>
               
-              <h1 className="text-2xl font-bold mb-4">Payment Successful!</h1>
+              <h1 className="text-2xl font-bold mb-4">¡Pago Exitoso!</h1>
               
               <p className="text-gray-600 mb-6">
-                Thank you for your purchase. Your payment has been processed successfully.
+                Gracias por su compra. Su pago ha sido procesado exitosamente.
                 {orderId && (
                   <span className="block mt-2">
-                    Order ID: <span className="font-medium">{orderId}</span>
+                    ID de Pedido: <span className="font-medium">{orderId}</span>
                   </span>
                 )}
                 {paymentStatus.transactionId && (
                   <span className="block mt-1">
-                    Transaction ID: <span className="font-medium">{paymentStatus.transactionId}</span>
+                    ID de Transacción: <span className="font-medium">{paymentStatus.transactionId}</span>
                   </span>
                 )}
                 {paymentStatus.provider && (
                   <span className="block mt-1">
-                    Payment Method: <span className="font-medium capitalize">{paymentStatus.provider}</span>
+                    Método de Pago: <span className="font-medium capitalize">{paymentStatus.provider === 'paypal' ? 'PayPal' : paymentStatus.provider}</span>
                   </span>
                 )}
               </p>
               
               <p className="text-gray-600 mb-8">
-                A confirmation email has been sent to your email address.
+                Se ha enviado un correo de confirmación a su dirección de email.
               </p>
               
               <div className="flex justify-center space-x-4">
                 <Button onClick={() => router.push('/customer/dashboard')}>
-                  Go to Dashboard
+                  Ir al Panel
                 </Button>
                 <Button variant="outline" onClick={() => router.push('/products')}>
-                  Continue Shopping
+                  Continuar Comprando
                 </Button>
               </div>
             </>
@@ -225,13 +225,13 @@ export default function PaymentSuccessPage() {
                 <AlertTriangle className="h-16 w-16 text-yellow-500" />
               </div>
               
-              <h1 className="text-2xl font-bold mb-4">Payment Pending</h1>
+              <h1 className="text-2xl font-bold mb-4">Pago Pendiente</h1>
               
               <p className="text-gray-600 mb-6">
-                Your payment is being processed. This may take a few moments.
+                Su pago está siendo procesado. Esto puede tomar unos momentos.
                 {orderId && (
                   <span className="block mt-2">
-                    Order ID: <span className="font-medium">{orderId}</span>
+                    ID de Pedido: <span className="font-medium">{orderId}</span>
                   </span>
                 )}
                 {paymentStatus.message && (
@@ -243,14 +243,14 @@ export default function PaymentSuccessPage() {
               
               <Alert className="mb-6">
                 <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>Payment in Progress</AlertTitle>
+                <AlertTitle>Pago en Proceso</AlertTitle>
                 <AlertDescription>
-                  Please do not close this page. We'll update you once the payment is complete.
+                  Por favor no cierre esta página. Le informaremos cuando el pago esté completo.
                 </AlertDescription>
               </Alert>
               
               <Button variant="outline" onClick={() => router.push('/customer/dashboard')}>
-                Go to Dashboard
+                Ir al Panel
               </Button>
             </>
           ) : (
@@ -259,10 +259,10 @@ export default function PaymentSuccessPage() {
                 <AlertCircle className="h-16 w-16 text-red-500" />
               </div>
               
-              <h1 className="text-2xl font-bold mb-4">Payment Failed</h1>
+              <h1 className="text-2xl font-bold mb-4">Pago Fallido</h1>
               
               <p className="text-gray-600 mb-6">
-                We couldn't process your payment. Please try again.
+                No pudimos procesar su pago. Por favor intente nuevamente.
                 {paymentStatus?.message && (
                   <span className="block mt-2 text-red-600">
                     {paymentStatus.message}
@@ -272,10 +272,10 @@ export default function PaymentSuccessPage() {
               
               <div className="flex justify-center space-x-4">
                 <Button onClick={() => router.push('/checkout')}>
-                  Try Again
+                  Intentar Nuevamente
                 </Button>
                 <Button variant="outline" onClick={() => router.push('/customer/dashboard')}>
-                  Go to Dashboard
+                  Ir al Panel
                 </Button>
               </div>
             </>

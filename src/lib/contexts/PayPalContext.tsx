@@ -16,6 +16,7 @@ export function PayPalProvider({ children }: PayPalContextProps) {
     clientId: paypalClientId,
     currency: 'USD',
     intent: 'capture',
+    locale: 'es_ES',
   };
   
   return (
