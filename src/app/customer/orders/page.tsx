@@ -238,8 +238,8 @@ export default function CustomerOrdersPage() {
                   <TableBody>
                     {orders.map((order) => (
                       <TableRow key={order.id}>
-                        <TableCell className="font-mono text-xs">
-                          {order.id.substring(0, 8)}...
+                        <TableCell>
+                          {order.id}
                         </TableCell>
                         <TableCell>
                           {order.created_at ? formatDate(order.created_at) : 'N/A'}
