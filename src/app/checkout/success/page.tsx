@@ -86,9 +86,20 @@ export default function PaymentSuccessPage() {
                 name: item.name || item.product_name,
                 price: item.price || item.unit_price
               })),
-              payment_status: orderData.payment_status,
-              created_at: orderData.created_at
+              payment_status: orderData.payment_status || 'pending',
+              created_at: orderData.created_at || new Date().toISOString()
             });
+
+            // If we have order details and payment was successful, ensure payment status is set
+            if (orderData.payment_status === 'paid' && paymentId) {
+              setPaymentStatus({
+                success: true,
+                status: 'completed',
+                orderId: orderId,
+                paymentId: paymentId,
+                provider: paymentMethod as 'paypal' | 'tilopay' || 'paypal'
+              });
+            }
           }
         } catch (error) {
           console.error('Error fetching order details:', error);
@@ -224,12 +235,23 @@ export default function PaymentSuccessPage() {
     
     if (orderId && mockPayment === 'true' && paymentId) {
       processPayment();
-    } else if (orderId && paymentId && paymentMethod === 'paypal') {
-      // This is a payment that was redirected back from PayPal
-      // We need to update the order status in the database
+    } else if (orderId && paymentId) {
+      // This is a PayPal payment callback - payment was already captured successfully
+      // Set payment status as successful immediately
+      setPaymentStatus({
+        success: true,
+        status: 'completed',
+        orderId: orderId,
+        paymentId: paymentId,
+        provider: 'paypal'
+      });
+
+      // Clear cart data since payment was successful
+      localStorage.removeItem(`cart_${orderId}`);
+      
+      // Try to update order status in database, but don't affect the UI if it fails
       (async () => {
         try {
-          // Update order status in database
           const response = await fetch('/api/payments/paypal/update-status', {
             method: 'POST',
             headers: {
@@ -244,26 +266,19 @@ export default function PaymentSuccessPage() {
           
           const data = await response.json();
           
-          if (data.success) {
-            console.log('Order status updated successfully');
-          } else {
+          if (!data.success) {
+            // Just log the error but don't change the UI state
             console.error('Error updating order status:', data.error);
           }
         } catch (error) {
+          // Just log the error but don't change the UI state
           console.error('Error updating order status:', error);
         }
       })();
       
-      setPaymentStatus({
-        success: true,
-        status: 'completed',
-        orderId: orderId,
-        paymentId: paymentId,
-        provider: 'paypal'
-      });
       setIsLoading(false);
-    } else if (orderId && paymentMethod === 'tilopay') {
-      // This is a payment that was redirected back from Tilopay
+    } else if (orderId && tilopayCode && tilopayTransactionId) {
+      // This is a Tilopay payment callback
       (async () => {
         try {
           // Get cart data from localStorage using the same format as PayPal
@@ -309,9 +324,9 @@ export default function PaymentSuccessPage() {
               success: true,
               status: 'completed',
               orderId: orderId,
-              transactionId: tilopayTransactionId || data.transactionId,
+              transactionId: tilopayTransactionId || data.transactionId || undefined,
               provider: 'tilopay',
-              message: tilopayDescription
+              message: tilopayDescription || undefined
             });
 
             // Set order details from the response
