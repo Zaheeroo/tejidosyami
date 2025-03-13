@@ -237,13 +237,16 @@ export default function OrdersPage() {
         throw new Error(data.error || 'Failed to update order status');
       }
       
-      // Update local state
+      // Update local state with both status and updated_at timestamp from the API response
       setOrders(orders.map(order => 
-        order.id === orderToUpdate.id ? { ...order, status: newStatus } : order
+        order.id === orderToUpdate.id ? { ...order, ...data.order } : order
       ))
       
       toast.success(`Order status updated to ${newStatus}`)
       setIsStatusUpdateOpen(false)
+      
+      // Refresh orders to ensure we have the latest data
+      loadOrders()
     } catch (error: any) {
       console.error('Error updating order status:', error)
       toast.error(`Failed to update order status: ${error.message}`)
