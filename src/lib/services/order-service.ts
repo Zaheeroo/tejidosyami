@@ -22,6 +22,19 @@ export interface Order {
   metadata?: any;
   customer_name?: string;
   customer_email?: string;
+  payment?: {
+    id: string;
+    order_id: string;
+    payment_id: string;
+    amount: number;
+    currency: string;
+    status: string;
+    provider: string;
+    transaction_id?: string;
+    payment_method?: string;
+    created_at: string;
+    updated_at: string;
+  };
 }
 
 export interface OrderItem {
@@ -126,24 +139,103 @@ export async function getOrders() {
 
 // Get orders for a specific user
 export async function getUserOrders(userId: string) {
-  const { data, error } = await supabase
-    .from('orders')
-    .select(`
-      *,
-      items:order_items(
-        *,
-        product:products(name, image_url)
-      )
-    `)
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false });
+  try {
+    // Use admin client to bypass RLS
+    const supabaseAdmin = createAdminClient();
     
-  if (error) {
-    console.error(`Error fetching orders for user ${userId}:`, error);
+    console.log('Getting orders for user ID:', userId);
+    
+    // First try to get user's email to find all their orders
+    const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(userId);
+    
+    let userEmail = null;
+    if (!userError && userData && userData.user && userData.user.email) {
+      userEmail = userData.user.email;
+      console.log('Found user email:', userEmail);
+    }
+    
+    // First try with admin client
+    const { data, error } = await supabaseAdmin
+      .from('orders')
+      .select(`
+        *,
+        items:order_items(
+          *,
+          product:products(name, image_url)
+        )
+      `)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+      
+    if (error) {
+      console.error(`Error fetching orders for user ${userId} with admin client:`, error);
+      
+      // If admin client fails, try with regular client (will work if RLS policies are set up correctly)
+      console.log('Falling back to regular client...');
+      const { data: regularData, error: regularError } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          items:order_items(
+            *,
+            product:products(name, image_url)
+          )
+        `)
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+        
+      if (regularError) {
+        console.error(`Error fetching orders for user ${userId} with regular client:`, regularError);
+        throw regularError;
+      }
+      
+      return regularData as Order[];
+    }
+    
+    // If we have the user's email, also try to find orders that might have been created with a different user ID
+    // but belong to the same user (based on email)
+    if (userEmail) {
+      // Get orders from payments table where the customer email matches
+      const { data: paymentOrders, error: paymentError } = await supabaseAdmin
+        .from('payments')
+        .select(`
+          order_id
+        `)
+        .eq('customer_email', userEmail);
+        
+      if (!paymentError && paymentOrders && paymentOrders.length > 0) {
+        // Get the order IDs
+        const orderIds = paymentOrders.map(po => po.order_id);
+        console.log('Found additional orders by email:', orderIds);
+        
+        // Get the full order details
+        const { data: additionalOrders, error: additionalError } = await supabaseAdmin
+          .from('orders')
+          .select(`
+            *,
+            items:order_items(
+              *,
+              product:products(name, image_url)
+            )
+          `)
+          .in('id', orderIds)
+          .not('user_id', 'eq', userId) // Only get orders with different user_id
+          .order('created_at', { ascending: false });
+          
+        if (!additionalError && additionalOrders && additionalOrders.length > 0) {
+          console.log('Found', additionalOrders.length, 'additional orders for user');
+          
+          // Combine the orders
+          return [...data, ...additionalOrders] as Order[];
+        }
+      }
+    }
+    
+    return data as Order[];
+  } catch (error) {
+    console.error(`Error in getUserOrders for user ${userId}:`, error);
     throw error;
   }
-  
-  return data as Order[];
 }
 
 // Get a specific order by ID

@@ -18,13 +18,21 @@ interface PaymentStatus {
   paymentId?: string;
   orderId?: string;
   transactionId?: string;
-  provider?: 'paypal';
+  provider?: 'paypal' | 'tilopay';
+}
+
+interface OrderItem extends OrderItemType {
+  name: string;
+  price: number;
+  quantity: number;
 }
 
 interface OrderDetails {
   id: string;
   total_amount: number;
-  items: OrderItemType[];
+  items: OrderItem[];
+  payment_status: string;
+  created_at: string;
 }
 
 // This component calls a server-side API to process the payment
@@ -36,11 +44,19 @@ export default function PaymentSuccessPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [orderDetails, setOrderDetails] = useState<OrderDetails | null>(null);
   
-  // Get the order ID from the URL
+  // Get all parameters from the URL
   const orderId = searchParams.get('orderId');
   const mockPayment = searchParams.get('mockPayment');
   const paymentId = searchParams.get('paymentId');
   const testCard = searchParams.get('testCard');
+  const paymentMethod = searchParams.get('paymentMethod');
+  
+  // Tilopay specific parameters
+  const tilopayCode = searchParams.get('code');
+  const tilopayDescription = searchParams.get('description');
+  const tilopayAuth = searchParams.get('auth');
+  const tilopayTransactionId = searchParams.get('tilopay-transaction');
+  const tilopayOrderHash = searchParams.get('OrderHash');
   
   // Process payment and clear cart on initial render
   useEffect(() => {
@@ -48,7 +64,10 @@ export default function PaymentSuccessPage() {
     clearCart();
     
     console.log('Success page: Order ID from URL:', orderId);
-    console.log('Success page: Payment ID from URL:', paymentId);
+    console.log('Success page: Payment Method from URL:', paymentMethod);
+    console.log('Success page: Tilopay Code:', tilopayCode);
+    console.log('Success page: Tilopay Auth:', tilopayAuth);
+    console.log('Success page: Tilopay Transaction:', tilopayTransactionId);
     
     // Fetch order details if we have an order ID
     const fetchOrderDetails = async () => {
@@ -62,7 +81,13 @@ export default function PaymentSuccessPage() {
             setOrderDetails({
               id: orderData.id,
               total_amount: orderData.total_amount,
-              items: orderData.items
+              items: orderData.items.map((item: any) => ({
+                ...item,
+                name: item.name || item.product_name,
+                price: item.price || item.unit_price
+              })),
+              payment_status: orderData.payment_status,
+              created_at: orderData.created_at
             });
           }
         } catch (error) {
@@ -184,11 +209,22 @@ export default function PaymentSuccessPage() {
       }
     };
     
-    fetchOrderDetails();
+    // Add a short delay before fetching order details to ensure the order has been created
+    const delayedFetch = () => {
+      // For Tilopay payments, add a slightly longer delay since we need to create the order first
+      const delayTime = paymentMethod === 'tilopay' ? 1000 : 300;
+      
+      setTimeout(() => {
+        fetchOrderDetails();
+      }, delayTime);
+    };
+    
+    // Instead of calling fetchOrderDetails directly, use the delayed version
+    delayedFetch();
     
     if (orderId && mockPayment === 'true' && paymentId) {
       processPayment();
-    } else if (orderId && paymentId) {
+    } else if (orderId && paymentId && paymentMethod === 'paypal') {
       // This is a payment that was redirected back from PayPal
       // We need to update the order status in the database
       (async () => {
@@ -226,6 +262,128 @@ export default function PaymentSuccessPage() {
         provider: 'paypal'
       });
       setIsLoading(false);
+    } else if (orderId && paymentMethod === 'tilopay') {
+      // This is a payment that was redirected back from Tilopay
+      (async () => {
+        try {
+          // Get cart data from localStorage using the same format as PayPal
+          const cartDataString = localStorage.getItem(`cart_${orderId}`);
+          const cartData = cartDataString ? JSON.parse(cartDataString) : null;
+
+          if (!cartData) {
+            console.error('Cart data not found in localStorage');
+            setPaymentStatus({
+              success: false,
+              status: 'failed',
+              message: 'Error: Cart data not found',
+              orderId: orderId
+            });
+            setIsLoading(false);
+            return;
+          }
+
+          // Update order status in database with Tilopay response
+          const response = await fetch('/api/payments/tilopay/update-status', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              orderId,
+              cartData,
+              tilopayResponse: {
+                code: tilopayCode,
+                description: tilopayDescription,
+                auth: tilopayAuth,
+                transactionId: tilopayTransactionId,
+                orderHash: tilopayOrderHash
+              }
+            }),
+          });
+          
+          const data = await response.json();
+          
+          if (data.success) {
+            console.log('Order status updated successfully');
+            setPaymentStatus({
+              success: true,
+              status: 'completed',
+              orderId: orderId,
+              transactionId: tilopayTransactionId || data.transactionId,
+              provider: 'tilopay',
+              message: tilopayDescription
+            });
+
+            // Set order details from the response
+            if (data.orderDetails) {
+              try {
+                setOrderDetails({
+                  id: data.orderDetails.id,
+                  total_amount: data.orderDetails.total_amount || 0,
+                  items: Array.isArray(data.orderDetails.items) 
+                    ? data.orderDetails.items.map((item: any) => ({
+                        ...item,
+                        name: item.name || item.product_name || item.product?.name || 'Unknown Product',
+                        price: item.price || item.unit_price || 0,
+                        quantity: item.quantity || 1
+                      }))
+                    : [], // If items is not an array, use an empty array
+                  payment_status: data.orderDetails.payment_status || 'pending',
+                  created_at: data.orderDetails.created_at || new Date().toISOString()
+                });
+              } catch (error) {
+                console.error('Error parsing order details:', error);
+                // Create a minimal order details object
+                setOrderDetails({
+                  id: data.orderDetails.id || orderId,
+                  total_amount: data.orderDetails.total_amount || cartData.total || 0,
+                  items: [],
+                  payment_status: data.orderDetails.payment_status || 'pending',
+                  created_at: data.orderDetails.created_at || new Date().toISOString()
+                });
+              }
+            } else {
+              // Create a minimal order details object from cart data
+              setOrderDetails({
+                id: orderId,
+                total_amount: cartData.total || 0,
+                items: cartData.items.map((item: any) => ({
+                  id: item.product.id,
+                  name: item.product.name || 'Unknown Product',
+                  price: item.product.price || 0,
+                  quantity: item.quantity || 1,
+                  subtotal: (item.product.price || 0) * (item.quantity || 1)
+                })),
+                payment_status: 'paid',
+                created_at: new Date().toISOString()
+              });
+            }
+
+            // Clear cart data from localStorage
+            localStorage.removeItem(`cart_${orderId}`);
+          } else {
+            console.error('Error updating order status:', data.error);
+            setPaymentStatus({
+              success: false,
+              status: 'failed',
+              message: tilopayDescription || data.error || 'Error al actualizar el estado del pago',
+              orderId: orderId,
+              transactionId: tilopayTransactionId
+            });
+          }
+        } catch (error: any) {
+          console.error('Error updating order status:', error);
+          setPaymentStatus({
+            success: false,
+            status: 'failed',
+            message: error.message || 'Error al actualizar el estado del pago',
+            orderId: orderId,
+            transactionId: tilopayTransactionId
+          });
+        }
+        
+        setIsLoading(false);
+      })();
     } else {
       setIsLoading(false);
     }
@@ -249,143 +407,108 @@ export default function PaymentSuccessPage() {
               
               <h1 className="text-2xl font-bold mb-4">¡Pago Exitoso!</h1>
               
-              <p className="text-gray-600 mb-4">
-                Gracias por su compra. Su pago ha sido procesado exitosamente.
-                <span className="block mt-2">
-                  Su pedido está pendiente de procesamiento. Recibirá actualizaciones por correo electrónico.
-                </span>
-              </p>
-              
-              {/* Order Details Card */}
-              <div className="bg-gray-50 rounded-lg p-4 mb-6 text-left">
-                <div className="flex items-center gap-2 mb-2">
-                  <Package className="h-5 w-5 text-gray-700" />
-                  <h3 className="font-semibold">Detalles del Pedido</h3>
-                </div>
-                
-                <div className="text-sm space-y-1">
-                  {orderId && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">ID de Pedido:</span>
-                      <span className="font-medium">{orderId}</span>
-                    </div>
-                  )}
-                  
-                  {paymentStatus.transactionId && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">ID de Transacción:</span>
-                      <span className="font-medium">{paymentStatus.transactionId}</span>
-                    </div>
-                  )}
-                  
-                  {paymentStatus.provider && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Método de Pago:</span>
-                      <span className="font-medium">PayPal</span>
-                    </div>
-                  )}
-                  
-                  {orderDetails && (
-                    <>
-                      <Separator className="my-2" />
-                      
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Artículos:</span>
-                        <span className="font-medium">
-                          {orderDetails.items.reduce((total, item) => total + item.quantity, 0)}
-                        </span>
-                      </div>
-                      
-                      <div className="max-h-24 overflow-y-auto my-1">
-                        {orderDetails.items.map((item, index) => (
-                          <div key={index} className="flex justify-between text-xs py-1">
-                            <span>{item.quantity} x {item.product?.name || 'Producto'}</span>
-                            <span>${item.subtotal.toFixed(2)}</span>
-                          </div>
-                        ))}
-                      </div>
-                      
-                      <Separator className="my-2" />
-                      
-                      <div className="flex justify-between font-semibold">
-                        <span>Total:</span>
-                        <span>${orderDetails.total_amount.toFixed(2)}</span>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-              
-              <p className="text-gray-600 mb-6">
-                Se ha enviado un correo de confirmación a su dirección de email.
-              </p>
-              
-              <div className="flex justify-center space-x-4">
-                <Button onClick={() => router.push('/customer/dashboard')}>
-                  Ir al Panel
-                </Button>
-                <Button variant="outline" onClick={() => router.push('/products')}>
-                  Continuar Comprando
-                </Button>
-              </div>
-            </>
-          ) : paymentStatus?.status === 'pending' ? (
-            <>
-              <div className="mb-6 flex justify-center">
-                <AlertTriangle className="h-16 w-16 text-yellow-500" />
-              </div>
-              
-              <h1 className="text-2xl font-bold mb-4">Pago Pendiente</h1>
-              
-              <p className="text-gray-600 mb-6">
-                Su pago está siendo procesado. Esto puede tomar unos momentos.
-                {orderId && (
-                  <span className="block mt-2">
-                    ID de Pedido: <span className="font-medium">{orderId}</span>
-                  </span>
-                )}
-                {paymentStatus.message && (
-                  <span className="block mt-2 text-yellow-600">
-                    {paymentStatus.message}
-                  </span>
-                )}
-              </p>
-              
               <Alert className="mb-6">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>Pago en Proceso</AlertTitle>
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Pedido Confirmado</AlertTitle>
                 <AlertDescription>
-                  Por favor no cierre esta página. Le informaremos cuando el pago esté completo.
+                  Su pedido ha sido procesado exitosamente.
+                  {paymentStatus.orderId && (
+                    <div className="mt-2">
+                      <strong>Número de Pedido:</strong> {paymentStatus.orderId}
+                    </div>
+                  )}
+                  {paymentStatus.transactionId && (
+                    <div className="mt-1">
+                      <strong>ID de Transacción:</strong> {paymentStatus.transactionId}
+                    </div>
+                  )}
                 </AlertDescription>
               </Alert>
               
-              <Button variant="outline" onClick={() => router.push('/customer/dashboard')}>
-                Ir al Panel
-              </Button>
+              {orderDetails && (
+                <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                  <h2 className="font-semibold mb-2">Detalles del Pedido</h2>
+                  
+                  <div className="space-y-2">
+                    {orderDetails.items && orderDetails.items.length > 0 ? (
+                      orderDetails.items.map((item, index) => (
+                        <div key={index} className="flex justify-between text-sm">
+                          <span>{item.quantity}x {item.name}</span>
+                          <span>${(item.price * item.quantity).toFixed(2)}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-sm text-gray-500">No hay detalles de productos disponibles</div>
+                    )}
+                    
+                    <Separator className="my-2" />
+                    
+                    <div className="flex justify-between font-semibold">
+                      <span>Total:</span>
+                      <span>${orderDetails.total_amount.toFixed(2)}</span>
+                    </div>
+
+                    <div className="text-sm text-gray-500 mt-2">
+                      <div>Fecha: {new Date(orderDetails.created_at).toLocaleDateString()}</div>
+                      <div>Estado: {orderDetails.payment_status === 'paid' ? 'Pagado' : 'Pendiente'}</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              <div className="space-y-4">
+                <Button
+                  onClick={() => router.push('/customer/orders')}
+                  className="w-full"
+                >
+                  <Package className="mr-2 h-4 w-4" />
+                  Ver Mis Pedidos
+                </Button>
+                
+                <Button
+                  onClick={() => router.push('/')}
+                  variant="outline"
+                  className="w-full"
+                >
+                  Volver a la Tienda
+                </Button>
+              </div>
             </>
           ) : (
             <>
               <div className="mb-6 flex justify-center">
-                <AlertCircle className="h-16 w-16 text-red-500" />
+                <AlertTriangle className="h-16 w-16 text-red-500" />
               </div>
               
-              <h1 className="text-2xl font-bold mb-4">Pago Fallido</h1>
+              <h1 className="text-2xl font-bold mb-4">Error en el Pago</h1>
               
-              <p className="text-gray-600 mb-6">
-                No pudimos procesar su pago. Por favor intente nuevamente.
-                {paymentStatus?.message && (
-                  <span className="block mt-2 text-red-600">
-                    {paymentStatus.message}
-                  </span>
-                )}
-              </p>
+              <Alert variant="destructive" className="mb-6">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>
+                  {paymentStatus?.message || 'Hubo un error al procesar su pago. Por favor, inténtelo de nuevo.'}
+                  {paymentStatus?.orderId && (
+                    <div className="mt-2">
+                      <strong>Número de Pedido:</strong> {paymentStatus.orderId}
+                    </div>
+                  )}
+                </AlertDescription>
+              </Alert>
               
-              <div className="flex justify-center space-x-4">
-                <Button onClick={() => router.push('/checkout')}>
-                  Intentar Nuevamente
+              <div className="space-y-4">
+                <Button
+                  onClick={() => router.push('/checkout')}
+                  className="w-full"
+                >
+                  Intentar de Nuevo
                 </Button>
-                <Button variant="outline" onClick={() => router.push('/customer/dashboard')}>
-                  Ir al Panel
+                
+                <Button
+                  onClick={() => router.push('/')}
+                  variant="outline"
+                  className="w-full"
+                >
+                  Volver a la Tienda
                 </Button>
               </div>
             </>

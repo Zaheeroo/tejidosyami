@@ -27,6 +27,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
+import { supabase } from '@/lib/supabase/supabase-client'
 
 // Function to format date
 function formatDate(dateString: string) {
@@ -38,6 +39,36 @@ function formatDate(dateString: string) {
     minute: '2-digit'
   });
 }
+
+// Function to format payment method for display
+const formatPaymentMethod = (method?: string) => {
+  if (!method) return 'Not specified';
+  
+  switch (method.toLowerCase()) {
+    case 'paypal':
+      return 'PayPal';
+    case 'credit_card':
+      return 'Credit Card';
+    case 'test_card':
+      return 'Test Payment';
+    default:
+      return method.charAt(0).toUpperCase() + method.slice(1);
+  }
+};
+
+// Function to format payment provider for display
+const formatPaymentProvider = (provider?: string) => {
+  if (!provider) return 'Not specified';
+  
+  switch (provider.toLowerCase()) {
+    case 'paypal':
+      return 'PayPal';
+    case 'tilopay':
+      return 'Tilopay';
+    default:
+      return provider.charAt(0).toUpperCase() + provider.slice(1);
+  }
+};
 
 export default function CustomerOrdersPage() {
   const { user, loading } = useAuth()
@@ -61,11 +92,45 @@ export default function CustomerOrdersPage() {
         try {
           setIsLoading(true)
           const ordersData = await getUserOrders(user.id)
-          setOrders(ordersData)
+          
+          // Fetch payment details for each order
+          const ordersWithPayments = await Promise.all(
+            ordersData.map(async (order) => {
+              try {
+                // Get payment details for this order
+                const { data: payments, error } = await supabase
+                  .from('payments')
+                  .select('*')
+                  .eq('order_id', order.id)
+                  .order('created_at', { ascending: false })
+                  .limit(1);
+                
+                if (error) {
+                  console.error(`Error fetching payment for order ${order.id}:`, error);
+                  return order;
+                }
+                
+                // Add payment details to the order
+                if (payments && payments.length > 0) {
+                  return {
+                    ...order,
+                    payment: payments[0]
+                  };
+                }
+                
+                return order;
+              } catch (error) {
+                console.error(`Error processing payment for order ${order.id}:`, error);
+                return order;
+              }
+            })
+          );
+          
+          setOrders(ordersWithPayments)
           
           // Log to verify
-          console.log('Orders page - Order count:', ordersData.length, 'distinct orders')
-          console.log('Orders page - Total items across all orders:', ordersData.reduce((total, order) => 
+          console.log('Orders page - Order count:', ordersWithPayments.length, 'distinct orders')
+          console.log('Orders page - Total items across all orders:', ordersWithPayments.reduce((total, order) => 
             total + (order.items?.reduce((sum, item) => sum + item.quantity, 0) || 0), 0))
         } catch (error) {
           console.error('Error loading orders:', error)
@@ -173,24 +238,29 @@ export default function CustomerOrdersPage() {
                   <TableBody>
                     {orders.map((order) => (
                       <TableRow key={order.id}>
-                        <TableCell className="font-mono text-sm">
-                          {order.id}
+                        <TableCell className="font-mono text-xs">
+                          {order.id.substring(0, 8)}...
                         </TableCell>
                         <TableCell>
-                          {new Date(order.created_at || '').toLocaleDateString()}
+                          {order.created_at ? formatDate(order.created_at) : 'N/A'}
                         </TableCell>
-                        <TableCell>{getStatusBadge(order.status)}</TableCell>
-                        <TableCell>{getPaymentStatusBadge(order.payment_status)}</TableCell>
                         <TableCell>
-                          {order.items?.reduce((sum, item) => sum + item.quantity, 0) || 0} productos
+                          {getStatusBadge(order.status)}
                         </TableCell>
-                        <TableCell>${order.total_amount.toFixed(2)}</TableCell>
+                        <TableCell>
+                          {getPaymentStatusBadge(order.payment_status)}
+                        </TableCell>
+                        <TableCell>
+                          {order.items?.length || 0} items
+                        </TableCell>
+                        <TableCell>
+                          ${order.total_amount.toFixed(2)}
+                        </TableCell>
                         <TableCell>
                           <Button 
                             variant="outline" 
                             size="sm"
                             onClick={() => viewOrderDetails(order)}
-                            className="flex items-center"
                           >
                             <ExternalLink className="h-4 w-4 mr-1" />
                             Details
@@ -229,6 +299,16 @@ export default function CustomerOrdersPage() {
                       <p><span className="font-medium">Payment Status:</span> {getPaymentStatusBadge(selectedOrder.payment_status)}</p>
                       {selectedOrder.transaction_id && (
                         <p><span className="font-medium">Transaction ID:</span> {selectedOrder.transaction_id}</p>
+                      )}
+                      {selectedOrder.payment && (
+                        <>
+                          <p><span className="font-medium">Payment Method:</span> {formatPaymentMethod(selectedOrder.payment.payment_method)}</p>
+                          <p><span className="font-medium">Payment Provider:</span> {formatPaymentProvider(selectedOrder.payment.provider)}</p>
+                          {selectedOrder.payment.payment_id && (
+                            <p><span className="font-medium">Payment ID:</span> {selectedOrder.payment.payment_id}</p>
+                          )}
+                          <p><span className="font-medium">Payment Date:</span> {formatDate(selectedOrder.payment.created_at)}</p>
+                        </>
                       )}
                     </div>
                   </div>
