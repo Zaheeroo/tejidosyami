@@ -33,6 +33,18 @@ export default function AdminDashboard() {
 
       try {
         setIsLoading(true)
+        
+        // Force a refresh by clearing any browser cache
+        const timestamp = new Date().getTime();
+        await fetch(`/api/admin/get-order-count?t=${timestamp}`, {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          }
+        });
+        
         const data = await getDashboardStats()
         setStats(data)
       } catch (error) {
@@ -46,7 +58,50 @@ export default function AdminDashboard() {
     if (user && isAdmin(user)) {
       fetchDashboardStats()
     }
+
+    // Set up an interval to refresh the stats every 30 seconds
+    const intervalId = setInterval(() => {
+      if (user && isAdmin(user)) {
+        fetchDashboardStats()
+      }
+    }, 30000)
+
+    // Clean up the interval when the component unmounts
+    return () => clearInterval(intervalId)
   }, [user])
+
+  const refreshStats = async () => {
+    if (!user || !isAdmin(user)) return
+
+    try {
+      setIsLoading(true)
+      
+      // Force a refresh by clearing any browser cache
+      const timestamp = new Date().getTime();
+      const response = await fetch(`/api/admin/get-order-count?t=${timestamp}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
+      
+      const data = await response.json();
+      console.log('Refreshed order count:', data);
+      
+      // Get the full dashboard stats
+      const dashboardData = await getDashboardStats();
+      setStats(dashboardData);
+      
+      toast.success('Dashboard data refreshed');
+    } catch (error) {
+      console.error('Error refreshing dashboard stats:', error);
+      toast.error('Failed to refresh dashboard data');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Don't render anything while checking authentication
   if (loading || !user || !isAdmin(user)) {
@@ -59,12 +114,20 @@ export default function AdminDashboard() {
       <main className="container mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-          <Link href="/admin/products/new">
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Add New Product
+          <div className="flex space-x-2">
+            <Button onClick={refreshStats} variant="outline" disabled={isLoading}>
+              {isLoading ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500 mr-2"></div>
+              ) : null}
+              Refresh
             </Button>
-          </Link>
+            <Link href="/admin/products/new">
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Add New Product
+              </Button>
+            </Link>
+          </div>
         </div>
         
         {isLoading ? (

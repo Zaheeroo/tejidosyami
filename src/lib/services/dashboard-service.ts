@@ -103,15 +103,36 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     if (lowStockError) throw lowStockError;
 
     // Get order count
-    let orderCount = 0;
+    let orderCount = 0; // Start with 0 and get the actual count
     try {
-      // Try the direct API endpoint first
+      // Try the API endpoint first since it's working correctly
       try {
-        const response = await fetch('/api/admin/get-order-count');
+        // Add a timestamp to prevent caching
+        const timestamp = new Date().getTime();
+        const response = await fetch(`/api/admin/get-order-count?t=${timestamp}`, {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          }
+        });
         const data = await response.json();
         
         if (data.success && typeof data.count === 'number') {
           orderCount = data.count;
+          console.log('Successfully fetched order count from API:', orderCount);
+        } else {
+          // If API returns invalid data, try with admin client
+          const supabaseAdmin = createAdminClient();
+          const { count, error: orderError } = await supabaseAdmin
+            .from('orders')
+            .select('id', { count: 'exact', head: true });
+          
+          if (!orderError && count !== null) {
+            orderCount = count;
+            console.log('Successfully fetched order count from admin client:', orderCount);
+          }
         }
       } catch (apiError) {
         console.error('Error fetching from API endpoint:', apiError);
@@ -120,19 +141,11 @@ export async function getDashboardStats(): Promise<DashboardStats> {
         const supabaseAdmin = createAdminClient();
         const { count, error: orderError } = await supabaseAdmin
           .from('orders')
-          .select('*', { count: 'exact', head: true });
+          .select('id', { count: 'exact', head: true });
         
-        if (!orderError) {
-          orderCount = count || 0;
-        } else {
-          // If admin client fails, try with regular client as last resort
-          const { count: regularCount, error: regularError } = await supabase
-            .from('orders')
-            .select('*', { count: 'exact', head: true });
-          
-          if (!regularError) {
-            orderCount = regularCount || 0;
-          }
+        if (!orderError && count !== null) {
+          orderCount = count;
+          console.log('Successfully fetched order count from admin client:', orderCount);
         }
       }
     } catch (error) {
