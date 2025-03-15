@@ -395,7 +395,7 @@ export default function CustomerOrdersPage() {
                             <div className="text-gray-800">{formatPaymentMethod(selectedOrder.payment.payment_method)}</div>
                             
                             <div className="text-gray-500">Provider:</div>
-                            <div className="text-gray-800">{formatPaymentProvider(selectedOrder.payment.payment_provider)}</div>
+                            <div className="text-gray-800">{formatPaymentProvider(selectedOrder.payment.provider)}</div>
                             
                             <div className="text-gray-500">Status:</div>
                             <div>{getPaymentStatusBadge(selectedOrder.payment.status)}</div>
@@ -415,7 +415,7 @@ export default function CustomerOrdersPage() {
                           {selectedOrder.items.map((item, index) => (
                             <div key={index} className="flex justify-between items-center border-b border-gray-200 pb-2 last:border-0 last:pb-0">
                               <div>
-                                <p className="font-medium text-gray-800">{item.product_name}</p>
+                                <p className="font-medium text-gray-800">{item.product?.name || 'Unknown Product'}</p>
                                 <p className="text-sm text-gray-500">Quantity: {item.quantity}</p>
                               </div>
                               <p className="font-medium text-gray-800">${(item.price * item.quantity).toFixed(2)}</p>
