@@ -2,13 +2,14 @@
 
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, AlertCircle, AlertTriangle, Package } from 'lucide-react';
+import { CheckCircle, AlertCircle, AlertTriangle, Package, ArrowLeft, Heart } from 'lucide-react';
 import { useCart } from '@/lib/contexts/CartContext';
-import AuthDebug from '@/components/AuthDebug';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { getOrderById, Order, OrderItem as OrderItemType } from '@/lib/services/order-service';
 
 interface PaymentStatus {
@@ -408,129 +409,190 @@ export default function PaymentSuccessPage() {
   return (
     <>
       <Navbar />
-      <main className="container mx-auto px-4 py-8">
-        <div className="max-w-md mx-auto text-center">
-          {isLoading ? (
-            <div className="text-center">
-              <p className="text-lg">Procesando su pago...</p>
-            </div>
-          ) : paymentStatus?.status === 'completed' ? (
-            <>
-              <div className="mb-6 flex justify-center">
-                <CheckCircle className="h-16 w-16 text-green-500" />
-              </div>
-              
-              <h1 className="text-2xl font-bold mb-4">¡Pago Exitoso!</h1>
-              
-              <Alert className="mb-6">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Pedido Confirmado</AlertTitle>
-                <AlertDescription>
-                  Su pedido ha sido procesado exitosamente.
-                  {paymentStatus.orderId && (
-                    <div className="mt-2">
-                      <strong>Número de Pedido:</strong> {paymentStatus.orderId}
+      <div className="min-h-screen bg-gradient-to-b from-amber-50 to-white py-12">
+        <div className="container mx-auto px-4">
+          <div className="max-w-md mx-auto">
+            {isLoading ? (
+              <Card className="border-rose-100 shadow-md">
+                <CardContent className="p-8">
+                  <div className="flex flex-col items-center justify-center space-y-4 text-center">
+                    <div className="h-16 w-16 rounded-full bg-rose-100 flex items-center justify-center">
+                      <div className="h-8 w-8 border-4 border-rose-500 border-t-transparent rounded-full animate-spin"></div>
                     </div>
-                  )}
-                  {paymentStatus.transactionId && (
-                    <div className="mt-1">
-                      <strong>ID de Transacción:</strong> {paymentStatus.transactionId}
+                    <p className="text-lg font-medium text-gray-700">Procesando su pago...</p>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : paymentStatus?.status === 'completed' ? (
+              <>
+                <div className="mb-6">
+                  <Link href="/">
+                    <Button 
+                      variant="ghost" 
+                      className="text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                    >
+                      <ArrowLeft className="mr-2 h-4 w-4" />
+                      Volver a la Tienda
+                    </Button>
+                  </Link>
+                </div>
+                
+                <Card className="border-rose-100 shadow-md overflow-hidden">
+                  <div className="bg-gradient-to-r from-rose-100 to-amber-100 p-8 flex flex-col items-center">
+                    <div className="mb-4 h-20 w-20 rounded-full bg-white shadow-md flex items-center justify-center">
+                      <CheckCircle className="h-12 w-12 text-green-500" />
                     </div>
-                  )}
-                </AlertDescription>
-              </Alert>
-              
-              {orderDetails && (
-                <div className="bg-gray-50 rounded-lg p-4 mb-6">
-                  <h2 className="font-semibold mb-2">Detalles del Pedido</h2>
+                    <h1 className="text-2xl font-serif font-bold text-rose-800 text-center">¡Pago Exitoso!</h1>
+                    <p className="text-amber-700 mt-2 text-center">Gracias por su compra de productos artesanales</p>
+                  </div>
                   
-                  <div className="space-y-2">
-                    {orderDetails.items && orderDetails.items.length > 0 ? (
-                      orderDetails.items.map((item, index) => (
-                        <div key={index} className="flex justify-between text-sm">
-                          <span>{item.quantity}x {item.name}</span>
-                          <span>${(item.price * item.quantity).toFixed(2)}</span>
+                  <CardContent className="p-6">
+                    <Alert className="mb-6 border-green-100 bg-green-50">
+                      <AlertCircle className="h-4 w-4 text-green-600" />
+                      <AlertTitle className="text-green-800">Pedido Confirmado</AlertTitle>
+                      <AlertDescription className="text-green-700">
+                        Su pedido ha sido procesado exitosamente.
+                        {paymentStatus.orderId && (
+                          <div className="mt-2">
+                            <strong>Número de Pedido:</strong> {paymentStatus.orderId}
+                          </div>
+                        )}
+                        {paymentStatus.transactionId && (
+                          <div className="mt-1">
+                            <strong>ID de Transacción:</strong> {paymentStatus.transactionId}
+                          </div>
+                        )}
+                      </AlertDescription>
+                    </Alert>
+                    
+                    {orderDetails && (
+                      <div className="bg-amber-50 rounded-lg p-4 mb-6 border border-amber-100">
+                        <h2 className="font-serif font-semibold text-amber-800 mb-3">Detalles del Pedido</h2>
+                        
+                        <div className="space-y-2">
+                          {orderDetails.items && orderDetails.items.length > 0 ? (
+                            orderDetails.items.map((item, index) => (
+                              <div key={index} className="flex justify-between text-sm">
+                                <div className="flex items-center">
+                                  <div className="w-6 h-6 rounded-full bg-rose-100 flex items-center justify-center mr-2 text-xs font-medium text-rose-700">
+                                    {item.quantity}
+                                  </div>
+                                  <span className="text-gray-700">{item.name}</span>
+                                </div>
+                                <span className="font-medium text-gray-800">${(item.price * item.quantity).toFixed(2)}</span>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="text-sm text-gray-500">No hay detalles de productos disponibles</div>
+                          )}
+                          
+                          <Separator className="my-3 bg-amber-200" />
+                          
+                          <div className="flex justify-between font-semibold">
+                            <span className="text-gray-800">Total:</span>
+                            <span className="text-rose-700">${orderDetails.total_amount.toFixed(2)}</span>
+                          </div>
+
+                          <div className="text-sm text-gray-600 mt-3 bg-white p-2 rounded border border-amber-100">
+                            <div className="flex items-center">
+                              <span className="w-24">Fecha:</span>
+                              <span>{new Date(orderDetails.created_at).toLocaleDateString()}</span>
+                            </div>
+                            <div className="flex items-center">
+                              <span className="w-24">Estado:</span>
+                              <span className={orderDetails.payment_status === 'paid' ? 'text-green-600' : 'text-amber-600'}>
+                                {orderDetails.payment_status === 'paid' ? 'Pagado' : 'Pendiente'}
+                              </span>
+                            </div>
+                          </div>
                         </div>
-                      ))
-                    ) : (
-                      <div className="text-sm text-gray-500">No hay detalles de productos disponibles</div>
+                      </div>
                     )}
                     
-                    <Separator className="my-2" />
-                    
-                    <div className="flex justify-between font-semibold">
-                      <span>Total:</span>
-                      <span>${orderDetails.total_amount.toFixed(2)}</span>
+                    <div className="space-y-4">
+                      <Link href="/customer/orders">
+                        <Button
+                          className="w-full bg-rose-600 hover:bg-rose-700"
+                        >
+                          <Package className="mr-2 h-4 w-4" />
+                          Ver Mis Pedidos
+                        </Button>
+                      </Link>
+                      
+                      <Link href="/products">
+                        <Button
+                          variant="outline"
+                          className="w-full border-rose-200 text-rose-700 hover:bg-rose-50"
+                        >
+                          <Heart className="mr-2 h-4 w-4" />
+                          Explorar Más Productos
+                        </Button>
+                      </Link>
                     </div>
-
-                    <div className="text-sm text-gray-500 mt-2">
-                      <div>Fecha: {new Date(orderDetails.created_at).toLocaleDateString()}</div>
-                      <div>Estado: {orderDetails.payment_status === 'paid' ? 'Pagado' : 'Pendiente'}</div>
-                    </div>
-                  </div>
+                  </CardContent>
+                </Card>
+              </>
+            ) : (
+              <>
+                <div className="mb-6">
+                  <Link href="/">
+                    <Button 
+                      variant="ghost" 
+                      className="text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                    >
+                      <ArrowLeft className="mr-2 h-4 w-4" />
+                      Volver a la Tienda
+                    </Button>
+                  </Link>
                 </div>
-              )}
-              
-              <div className="space-y-4">
-                <Button
-                  onClick={() => router.push('/customer/orders')}
-                  className="w-full"
-                >
-                  <Package className="mr-2 h-4 w-4" />
-                  Ver Mis Pedidos
-                </Button>
                 
-                <Button
-                  onClick={() => router.push('/')}
-                  variant="outline"
-                  className="w-full"
-                >
-                  Volver a la Tienda
-                </Button>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="mb-6 flex justify-center">
-                <AlertTriangle className="h-16 w-16 text-red-500" />
-              </div>
-              
-              <h1 className="text-2xl font-bold mb-4">Error en el Pago</h1>
-              
-              <Alert variant="destructive" className="mb-6">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Error</AlertTitle>
-                <AlertDescription>
-                  {paymentStatus?.message || 'Hubo un error al procesar su pago. Por favor, inténtelo de nuevo.'}
-                  {paymentStatus?.orderId && (
-                    <div className="mt-2">
-                      <strong>Número de Pedido:</strong> {paymentStatus.orderId}
+                <Card className="border-rose-100 shadow-md overflow-hidden">
+                  <div className="bg-gradient-to-r from-rose-100 to-amber-100 p-8 flex flex-col items-center">
+                    <div className="mb-4 h-20 w-20 rounded-full bg-white shadow-md flex items-center justify-center">
+                      <AlertTriangle className="h-12 w-12 text-red-500" />
                     </div>
-                  )}
-                </AlertDescription>
-              </Alert>
-              
-              <div className="space-y-4">
-                <Button
-                  onClick={() => router.push('/checkout')}
-                  className="w-full"
-                >
-                  Intentar de Nuevo
-                </Button>
-                
-                <Button
-                  onClick={() => router.push('/')}
-                  variant="outline"
-                  className="w-full"
-                >
-                  Volver a la Tienda
-                </Button>
-              </div>
-            </>
-          )}
+                    <h1 className="text-2xl font-serif font-bold text-rose-800 text-center">Error en el Pago</h1>
+                  </div>
+                  
+                  <CardContent className="p-6">
+                    <Alert variant="destructive" className="mb-6">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertTitle>Error</AlertTitle>
+                      <AlertDescription>
+                        {paymentStatus?.message || 'Hubo un error al procesar su pago. Por favor, inténtelo de nuevo.'}
+                        {paymentStatus?.orderId && (
+                          <div className="mt-2">
+                            <strong>Número de Pedido:</strong> {paymentStatus.orderId}
+                          </div>
+                        )}
+                      </AlertDescription>
+                    </Alert>
+                    
+                    <div className="space-y-4">
+                      <Link href="/checkout">
+                        <Button
+                          className="w-full bg-rose-600 hover:bg-rose-700"
+                        >
+                          Intentar de Nuevo
+                        </Button>
+                      </Link>
+                      
+                      <Link href="/products">
+                        <Button
+                          variant="outline"
+                          className="w-full border-rose-200 text-rose-700 hover:bg-rose-50"
+                        >
+                          Volver a Productos
+                        </Button>
+                      </Link>
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            )}
+          </div>
         </div>
-      </main>
-      <AuthDebug />
+      </div>
     </>
   );
 } 

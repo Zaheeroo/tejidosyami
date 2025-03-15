@@ -317,7 +317,16 @@ export default function CustomerOrdersPage() {
                       {orders.map((order) => (
                         <TableRow key={order.id} className="hover:bg-gray-50 transition-colors">
                           <TableCell className="font-medium text-gray-700">
-                            {order.id.substring(0, 8)}...
+                            <span 
+                              className="cursor-pointer hover:text-rose-600 transition-colors" 
+                              title="Click to copy Order ID"
+                              onClick={() => {
+                                navigator.clipboard.writeText(order.id);
+                                toast.success('Order ID copied to clipboard');
+                              }}
+                            >
+                              {order.id}
+                            </span>
                           </TableCell>
                           <TableCell className="text-gray-600">
                             {order.created_at ? formatDate(order.created_at) : 'N/A'}
