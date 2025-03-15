@@ -6,9 +6,9 @@ import Link from 'next/link'
 import { useAuth } from '@/lib/contexts/SupabaseAuthContext'
 import { isCustomer } from '@/lib/utils'
 import Navbar from '@/components/Navbar'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { toast } from 'sonner'
-import { ChevronLeft, ShoppingBag, ExternalLink } from 'lucide-react'
+import { ChevronLeft, ShoppingBag, ExternalLink, Package, Calendar, CreditCard } from 'lucide-react'
 import { getUserOrders, Order } from '@/lib/services/order-service'
 import {
   Table,
@@ -154,29 +154,29 @@ export default function CustomerOrdersPage() {
   const getStatusBadge = (status: string) => {
     switch (status.toLowerCase()) {
       case 'completed':
-        return <Badge className="bg-green-500 text-white border-none">Completed</Badge>
+        return <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white border-none">Completed</Badge>
       case 'processing':
-        return <Badge className="bg-blue-500 text-white border-none">Processing</Badge>
+        return <Badge className="bg-blue-500 hover:bg-blue-600 text-white border-none">Processing</Badge>
       case 'shipped':
-        return <Badge className="bg-purple-500 text-white border-none">Shipped</Badge>
+        return <Badge className="bg-violet-500 hover:bg-violet-600 text-white border-none">Shipped</Badge>
       case 'cancelled':
-        return <Badge className="bg-red-500 text-white border-none">Cancelled</Badge>
+        return <Badge className="bg-rose-500 hover:bg-rose-600 text-white border-none">Cancelled</Badge>
       case 'pending':
       default:
-        return <Badge className="bg-yellow-500 text-white border-none">Pending</Badge>
+        return <Badge className="bg-amber-500 hover:bg-amber-600 text-white border-none">Pending</Badge>
     }
   }
 
   const getPaymentStatusBadge = (status: string) => {
     switch (status.toLowerCase()) {
       case 'paid':
-        return <Badge className="bg-green-500 text-white border-none">Paid</Badge>
+        return <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white border-none">Paid</Badge>
       case 'refunded':
-        return <Badge className="bg-orange-500 text-white border-none">Refunded</Badge>
+        return <Badge className="bg-orange-500 hover:bg-orange-600 text-white border-none">Refunded</Badge>
       case 'failed':
-        return <Badge className="bg-red-500 text-white border-none">Failed</Badge>
+        return <Badge className="bg-rose-500 hover:bg-rose-600 text-white border-none">Failed</Badge>
       default:
-        return <Badge className="bg-yellow-500 text-white border-none">Pending</Badge>
+        return <Badge className="bg-amber-500 hover:bg-amber-600 text-white border-none">Pending</Badge>
     }
   }
 
@@ -189,171 +189,264 @@ export default function CustomerOrdersPage() {
   return (
     <>
       <Navbar />
-      <main className="container mx-auto px-4 py-8">
-        <div className="mb-6">
-          <Link href="/customer/dashboard" className="flex items-center text-blue-600 hover:text-blue-800 mb-2">
-            <ChevronLeft className="h-4 w-4 mr-1" />
-            Back to Dashboard
-          </Link>
-          <h1 className="text-3xl font-bold">My Orders</h1>
-          <p className="text-gray-500 mt-2">View and track your orders</p>
-        </div>
-        
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle>Order History</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="flex justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      <main className="min-h-screen bg-gradient-to-b from-amber-50 to-white">
+        <div className="container mx-auto px-4 py-8">
+          {/* Header Section */}
+          <div className="mb-8">
+            <Link href="/customer/dashboard" className="flex items-center text-rose-600 hover:text-rose-700 mb-2 transition-colors">
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Back to Dashboard
+            </Link>
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-800 mb-2">My Orders</h1>
+                <p className="text-gray-600">Track and manage your crochet purchases</p>
               </div>
-            ) : orders.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12">
-                <ShoppingBag className="h-16 w-16 text-gray-300 mb-4" />
-                <h3 className="text-lg font-medium mb-2">No Orders Yet</h3>
-                <p className="text-gray-500 text-center max-w-md mb-6">
-                  You haven't placed any orders yet. Start shopping to see your orders here.
-                </p>
+              <div className="mt-4 md:mt-0">
                 <Link href="/products">
-                  <Button className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
-                    Browse Products
+                  <Button className="bg-rose-500 hover:bg-rose-600">
+                    Continue Shopping
                   </Button>
                 </Link>
               </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Order ID</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Payment</TableHead>
-                      <TableHead>Products</TableHead>
-                      <TableHead>Total</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {orders.map((order) => (
-                      <TableRow key={order.id}>
-                        <TableCell>
-                          {order.id}
-                        </TableCell>
-                        <TableCell>
-                          {order.created_at ? formatDate(order.created_at) : 'N/A'}
-                        </TableCell>
-                        <TableCell>
-                          {getStatusBadge(order.status)}
-                        </TableCell>
-                        <TableCell>
-                          {getPaymentStatusBadge(order.payment_status)}
-                        </TableCell>
-                        <TableCell>
-                          {order.items?.length || 0} items
-                        </TableCell>
-                        <TableCell>
-                          ${order.total_amount.toFixed(2)}
-                        </TableCell>
-                        <TableCell>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => viewOrderDetails(order)}
-                          >
-                            <ExternalLink className="h-4 w-4 mr-1" />
-                            Details
-                          </Button>
-                        </TableCell>
+            </div>
+          </div>
+          
+          {/* Order Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <Card className="border-0 shadow-md hover:shadow-lg transition-shadow duration-300 bg-white overflow-hidden">
+              <div className="absolute top-0 right-0 w-16 h-16 bg-rose-100 rounded-bl-full"></div>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-lg font-medium text-gray-800">Total Orders</CardTitle>
+                <div className="h-10 w-10 rounded-full bg-rose-100 flex items-center justify-center">
+                  <ShoppingBag className="h-5 w-5 text-rose-500" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-gray-800 mb-1">{orders.length}</div>
+                <p className="text-sm text-gray-500">
+                  Orders placed
+                </p>
+              </CardContent>
+            </Card>
+            
+            <Card className="border-0 shadow-md hover:shadow-lg transition-shadow duration-300 bg-white overflow-hidden">
+              <div className="absolute top-0 right-0 w-16 h-16 bg-teal-100 rounded-bl-full"></div>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-lg font-medium text-gray-800">Recent Order</CardTitle>
+                <div className="h-10 w-10 rounded-full bg-teal-100 flex items-center justify-center">
+                  <Calendar className="h-5 w-5 text-teal-500" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-lg font-bold text-gray-800 mb-1 truncate">
+                  {orders.length > 0 && orders[0].created_at 
+                    ? formatDate(orders[0].created_at).split(',')[0]
+                    : 'No orders yet'}
+                </div>
+                <p className="text-sm text-gray-500">
+                  Last purchase date
+                </p>
+              </CardContent>
+            </Card>
+            
+            <Card className="border-0 shadow-md hover:shadow-lg transition-shadow duration-300 bg-white overflow-hidden">
+              <div className="absolute top-0 right-0 w-16 h-16 bg-amber-100 rounded-bl-full"></div>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-lg font-medium text-gray-800">Items Purchased</CardTitle>
+                <div className="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center">
+                  <Package className="h-5 w-5 text-amber-500" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-gray-800 mb-1">
+                  {orders.reduce((total, order) => 
+                    total + (order.items?.reduce((sum, item) => sum + item.quantity, 0) || 0), 0)}
+                </div>
+                <p className="text-sm text-gray-500">
+                  Total items bought
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+          
+          {/* Orders Table */}
+          <Card className="border-0 shadow-md bg-white mb-8">
+            <CardHeader>
+              <CardTitle className="text-xl font-bold text-gray-800">Order History</CardTitle>
+              <CardDescription>View details of all your past orders</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="flex justify-center py-12">
+                  <div className="relative w-16 h-16">
+                    <div className="absolute top-0 left-0 w-full h-full border-4 border-rose-200 rounded-full animate-spin"></div>
+                    <div className="absolute top-0 left-0 w-full h-full border-4 border-transparent border-t-rose-500 rounded-full animate-spin"></div>
+                  </div>
+                </div>
+              ) : orders.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16">
+                  <div className="w-20 h-20 rounded-full bg-rose-100 flex items-center justify-center mb-6">
+                    <ShoppingBag className="h-10 w-10 text-rose-500" />
+                  </div>
+                  <h3 className="text-xl font-medium mb-3 text-gray-800">No Orders Yet</h3>
+                  <p className="text-gray-600 text-center max-w-md mb-8">
+                    You haven't placed any orders yet. Explore our handcrafted crochet items and make your first purchase.
+                  </p>
+                  <Link href="/products">
+                    <Button className="bg-rose-500 hover:bg-rose-600">
+                      Browse Products
+                    </Button>
+                  </Link>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-gray-50">
+                        <TableHead className="font-medium">Order ID</TableHead>
+                        <TableHead className="font-medium">Date</TableHead>
+                        <TableHead className="font-medium">Status</TableHead>
+                        <TableHead className="font-medium">Payment</TableHead>
+                        <TableHead className="font-medium">Products</TableHead>
+                        <TableHead className="font-medium">Total</TableHead>
+                        <TableHead className="font-medium">Actions</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-          <DialogContent className="max-w-3xl">
-            <DialogHeader>
-              <DialogTitle>Order Details</DialogTitle>
-            </DialogHeader>
-
-            {selectedOrder && (
-              <div className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <h3 className="font-semibold mb-2">Order Information</h3>
-                    <div className="space-y-1 text-sm">
-                      <p><span className="font-medium">Order ID:</span> {selectedOrder.id}</p>
-                      <p><span className="font-medium">Date:</span> {formatDate(selectedOrder.created_at || '')}</p>
-                      <p><span className="font-medium">Status:</span> {getStatusBadge(selectedOrder.status)}</p>
-                      <p><span className="font-medium">Total Amount:</span> ${selectedOrder.total_amount.toFixed(2)}</p>
-                    </div>
-                  </div>
-                  <div>
-                    <h3 className="font-semibold mb-2">Payment Information</h3>
-                    <div className="space-y-1 text-sm">
-                      <p><span className="font-medium">Payment Status:</span> {getPaymentStatusBadge(selectedOrder.payment_status)}</p>
-                      {selectedOrder.transaction_id && (
-                        <p><span className="font-medium">Transaction ID:</span> {selectedOrder.transaction_id}</p>
-                      )}
-                      {selectedOrder.payment && (
-                        <>
-                          <p><span className="font-medium">Payment Method:</span> {formatPaymentMethod(selectedOrder.payment.payment_method)}</p>
-                          <p><span className="font-medium">Payment Provider:</span> {formatPaymentProvider(selectedOrder.payment.provider)}</p>
-                          {selectedOrder.payment.payment_id && (
-                            <p><span className="font-medium">Payment ID:</span> {selectedOrder.payment.payment_id}</p>
-                          )}
-                          <p><span className="font-medium">Payment Date:</span> {formatDate(selectedOrder.payment.created_at)}</p>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="font-semibold mb-2">Order Items</h3>
-                  <div className="border rounded-lg overflow-hidden">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Product</TableHead>
-                          <TableHead>Quantity</TableHead>
-                          <TableHead>Price</TableHead>
-                          <TableHead>Subtotal</TableHead>
+                    </TableHeader>
+                    <TableBody>
+                      {orders.map((order) => (
+                        <TableRow key={order.id} className="hover:bg-gray-50 transition-colors">
+                          <TableCell className="font-medium text-gray-700">
+                            {order.id.substring(0, 8)}...
+                          </TableCell>
+                          <TableCell className="text-gray-600">
+                            {order.created_at ? formatDate(order.created_at) : 'N/A'}
+                          </TableCell>
+                          <TableCell>
+                            {getStatusBadge(order.status)}
+                          </TableCell>
+                          <TableCell>
+                            {order.payment ? (
+                              <div className="flex flex-col">
+                                <span className="text-sm">{formatPaymentMethod(order.payment.payment_method)}</span>
+                                {getPaymentStatusBadge(order.payment.status)}
+                              </div>
+                            ) : (
+                              <span className="text-gray-500">Not available</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-gray-600">
+                            {order.items?.reduce((sum, item) => sum + item.quantity, 0) || 0} items
+                          </TableCell>
+                          <TableCell className="font-medium text-gray-800">
+                            ${order.total_amount?.toFixed(2) || '0.00'}
+                          </TableCell>
+                          <TableCell>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              className="border-rose-200 text-gray-700 hover:bg-rose-100"
+                              onClick={() => viewOrderDetails(order)}
+                            >
+                              View Details
+                            </Button>
+                          </TableCell>
                         </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {selectedOrder.items?.map((item) => (
-                          <TableRow key={item.id}>
-                            <TableCell>{item.product?.name || 'Unknown Product'}</TableCell>
-                            <TableCell>{item.quantity}</TableCell>
-                            <TableCell>${item.price.toFixed(2)}</TableCell>
-                            <TableCell>${item.subtotal.toFixed(2)}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </div>
-
-                <DialogFooter>
-                  <div className="flex justify-between items-center w-full">
-                    <div className="text-sm text-gray-500">
-                      Last updated: {formatDate(selectedOrder.updated_at || selectedOrder.created_at || '')}
+              )}
+            </CardContent>
+          </Card>
+          
+          {/* Order Details Dialog */}
+          <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+            <DialogContent className="max-w-3xl">
+              <DialogHeader>
+                <DialogTitle className="text-xl font-bold text-gray-800">Order Details</DialogTitle>
+              </DialogHeader>
+              
+              {selectedOrder && (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <h3 className="text-sm font-medium text-gray-500">Order Information</h3>
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div className="text-gray-500">Order ID:</div>
+                          <div className="text-gray-800 font-medium">{selectedOrder.id}</div>
+                          
+                          <div className="text-gray-500">Date:</div>
+                          <div className="text-gray-800">{selectedOrder.created_at ? formatDate(selectedOrder.created_at) : 'N/A'}</div>
+                          
+                          <div className="text-gray-500">Status:</div>
+                          <div>{getStatusBadge(selectedOrder.status)}</div>
+                        </div>
+                      </div>
                     </div>
-                    <Button variant="outline" onClick={() => setIsDetailsOpen(false)}>
+                    
+                    <div className="space-y-2">
+                      <h3 className="text-sm font-medium text-gray-500">Payment Information</h3>
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        {selectedOrder.payment ? (
+                          <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div className="text-gray-500">Method:</div>
+                            <div className="text-gray-800">{formatPaymentMethod(selectedOrder.payment.payment_method)}</div>
+                            
+                            <div className="text-gray-500">Provider:</div>
+                            <div className="text-gray-800">{formatPaymentProvider(selectedOrder.payment.payment_provider)}</div>
+                            
+                            <div className="text-gray-500">Status:</div>
+                            <div>{getPaymentStatusBadge(selectedOrder.payment.status)}</div>
+                          </div>
+                        ) : (
+                          <p className="text-gray-500">Payment information not available</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-medium text-gray-500">Order Items</h3>
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      {selectedOrder.items && selectedOrder.items.length > 0 ? (
+                        <div className="space-y-4">
+                          {selectedOrder.items.map((item, index) => (
+                            <div key={index} className="flex justify-between items-center border-b border-gray-200 pb-2 last:border-0 last:pb-0">
+                              <div>
+                                <p className="font-medium text-gray-800">{item.product_name}</p>
+                                <p className="text-sm text-gray-500">Quantity: {item.quantity}</p>
+                              </div>
+                              <p className="font-medium text-gray-800">${(item.price * item.quantity).toFixed(2)}</p>
+                            </div>
+                          ))}
+                          
+                          <div className="flex justify-between items-center pt-2 border-t border-gray-300">
+                            <p className="font-medium text-gray-800">Total</p>
+                            <p className="font-bold text-gray-800">${selectedOrder.total_amount?.toFixed(2) || '0.00'}</p>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-gray-500">No items in this order</p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <DialogFooter>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setIsDetailsOpen(false)}
+                      className="border-gray-200 text-gray-700 hover:bg-gray-100"
+                    >
                       Close
                     </Button>
-                  </div>
-                </DialogFooter>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
+                  </DialogFooter>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
+        </div>
       </main>
     </>
   )
